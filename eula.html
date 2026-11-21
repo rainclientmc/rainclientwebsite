@@ -1,0 +1,75 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Rain Client — EULA</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Chakra+Petch:ital,wght@0,300;0,400;0,500;0,600;0,700;1,400;1,700&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --bg-dark: #0b0a0f; --text-light: #f3f4f6; --text-muted: #9ca3af;
+      --accent: #f472b6; --accent-light: #fca5a5;
+      --glass-border: rgba(255, 255, 255, 0.08);
+    }
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body { 
+      font-family: 'Chakra Petch', sans-serif; background: var(--bg-dark); color: var(--text-light); 
+      line-height: 1.8; min-height: 100vh; padding: 100px 20px;
+    }
+    a { text-decoration: none; color: inherit; }
+    .bg-grid {
+      position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; z-index: -1; pointer-events: none;
+      background-image: linear-gradient(rgba(255, 255, 255, 0.02) 1px, transparent 1px), linear-gradient(90deg, rgba(255, 255, 255, 0.02) 1px, transparent 1px);
+      background-size: 40px 40px;
+    }
+    .container {
+      max-width: 800px; margin: 0 auto; background: rgba(18, 16, 24, 0.65); 
+      backdrop-filter: blur(24px); border: 1px solid var(--glass-border); 
+      border-radius: 24px; padding: 50px;
+    }
+    .logo { font-size: 32px; font-weight: 700; font-style: italic; background: linear-gradient(135deg, var(--accent-light), var(--accent), #8b5cf6); -webkit-background-clip: text; -webkit-text-fill-color: transparent; margin-bottom: 30px; display: inline-block; }
+    h1 { font-size: 36px; text-transform: uppercase; margin-bottom: 20px; }
+    h2 { font-size: 22px; text-transform: uppercase; margin-top: 40px; margin-bottom: 15px; color: var(--accent); }
+    p { color: var(--text-muted); margin-bottom: 20px; }
+    ul { color: var(--text-muted); margin-left: 20px; margin-bottom: 20px; }
+    .btn { display: inline-flex; padding: 14px 28px; border-radius: 8px; background: rgba(255, 255, 255, 0.05); color: var(--text-light); border: 1px solid var(--glass-border); font-weight: 700; text-transform: uppercase; transition: 0.3s; margin-top: 30px; }
+    .btn:hover { background: rgba(255,255,255,0.1); border-color: var(--accent); }
+  </style>
+</head>
+<body>
+  <div class="bg-grid"></div>
+  <div class="container">
+    <a href="index.html" class="logo">RAIN</a>
+    <h1>End User License Agreement (EULA)</h1>
+    <p>Last updated: November 2026</p>
+
+    <h2>1. Acceptance of Terms</h2>
+    <p>By downloading, installing, or using Rain Client, you agree to be bound by the terms of this EULA. If you do not agree to these terms, do not use the client.</p>
+
+    <h2>2. License Grant</h2>
+    <p>Rain Client grants you a personal, non-exclusive, non-transferable, limited license to use the software for your own personal, non-commercial purposes, subject to the restrictions in this EULA.</p>
+
+    <h2>3. Restrictions</h2>
+    <p>You may not:</p>
+    <ul>
+      <li>Reverse engineer, decompile, or disassemble the client.</li>
+      <li>Modify, adapt, or create derivative works based on the client.</li>
+      <li>Distribute, sell, rent, lease, or sublicense the client to any third party.</li>
+      <li>Use the client for any illegal purposes or in violation of Minecraft's End User License Agreement.</li>
+    </ul>
+
+    <h2>4. Disclaimer of Warranty</h2>
+    <p>Rain Client is provided "AS IS" without warranty of any kind. We do not guarantee that the client will be error-free or uninterrupted. Use of the client is at your own risk.</p>
+
+    <h2>5. Limitation of Liability</h2>
+    <p>In no event shall the developers of Rain Client be liable for any damages, including but not limited to account bans, data loss, or computer damage, arising out of the use or inability to use the client.</p>
+
+    <h2>6. Termination</h2>
+    <p>This license is effective until terminated. Your rights under this license will terminate automatically without notice if you fail to comply with any term of this EULA.</p>
+
+    <a href="index.html" class="btn">&larr; Back to Home</a>
+  </div>
+</body>
+</html>

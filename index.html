@@ -1,0 +1,1666 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Rain Client</title>
+  <meta name="description" content="Rain Client — the free, clean and lightning-fast Minecraft PvP client for Fabric 1.21.11.">
+  <meta name="theme-color" content="#0b0a0f">
+  <link rel="icon" type="image/svg+xml" href="/favicon.svg">
+  <link rel="apple-touch-icon" href="/favicon.svg">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Chakra+Petch:ital,wght@0,300;0,400;0,500;0,600;0,700;1,400;1,700&display=swap" rel="stylesheet">
+  
+  <style>
+    /* Hide the hosting badge injected after the page loads. */
+    #nl-badge-frame { display: none !important; }
+
+    /* ==========================================================================
+       GLOBAL VARIABLES & RESET
+       ========================================================================== */
+    :root {
+      --bg-dark: #0b0a0f;
+      --bg-darker: #050408;
+      --bg-panel: rgba(18, 16, 24, 0.65);
+      --text-light: #f3f4f6;
+      --text-muted: #9ca3af;
+      --accent: #f472b6; 
+      --accent-light: #fca5a5;
+      --accent-dark: #be185d;
+      --accent-hover: #ec4899;
+      --white: #ffffff;
+      --glass-border: rgba(255, 255, 255, 0.08);
+      --glass-glow: rgba(244, 114, 182, 0.15);
+      --transition-smooth: 0.4s cubic-bezier(0.25, 1, 0.5, 1);
+      --transition-bounce: 0.6s cubic-bezier(0.34, 1.56, 0.64, 1);
+      --transition-expo: 1s cubic-bezier(0.16, 1, 0.3, 1);
+    }
+
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    html { scroll-behavior: auto; }
+    
+    ::-webkit-scrollbar { width: 8px; }
+    ::-webkit-scrollbar-track { background: var(--bg-darker); }
+    ::-webkit-scrollbar-thumb { background: var(--accent); border-radius: 10px; }
+    ::-webkit-scrollbar-thumb:hover { background: var(--accent-hover); }
+
+    body { 
+      font-family: 'Chakra Petch', sans-serif; 
+      background-color: var(--bg-dark); 
+      color: var(--text-light); 
+      line-height: 1.6; 
+      overflow-x: hidden; 
+      cursor: crosshair;
+    }
+    a { text-decoration: none; color: inherit; }
+    ul { list-style: none; }
+
+    /* Custom SVG Icon Base */
+    .svg-icon { display: inline-flex; align-items: center; justify-content: center; color: var(--white); flex-shrink: 0; }
+    .svg-icon svg { width: 100%; height: 100%; stroke: currentColor; fill: none; stroke-width: 2; }
+
+    /* ==========================================================================
+       BACKGROUND DECORATIONS & CANVASES
+       ========================================================================== */
+    #scroll-progress {
+      position: fixed; top: 0; left: 0; height: 4px; 
+      background: linear-gradient(to right, var(--accent-light), var(--accent), #8b5cf6);
+      width: 0%; z-index: 10000; box-shadow: 0 0 15px var(--accent);
+      transition: width 0.1s ease;
+    }
+
+    /* Rain & Trail & Particles */
+    #rain-canvas { position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; z-index: 9998; pointer-events: none; }
+    #trail-canvas { position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; z-index: 9999; pointer-events: none; }
+    #particle-canvas { position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; z-index: 1; pointer-events: none; }
+
+    /* Animated Grid & Scanlines */
+    .bg-grid {
+      position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; z-index: 0; pointer-events: none;
+      background-image: 
+        linear-gradient(rgba(255, 255, 255, 0.02) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(255, 255, 255, 0.02) 1px, transparent 1px);
+      background-size: 40px 40px;
+      animation: gridMove 20s linear infinite;
+    }
+    @keyframes gridMove { 0% { background-position: 0 0; } 100% { background-position: 40px 40px; } }
+
+    .bg-scanlines {
+      position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; z-index: 2; pointer-events: none;
+      background: linear-gradient(to bottom, rgba(255,255,255,0), rgba(255,255,255,0) 50%, rgba(0,0,0,0.1) 50%, rgba(0,0,0,0.1));
+      background-size: 100% 4px;
+      opacity: 0.3;
+    }
+
+    .floating-shape { position: absolute; border: 1px solid rgba(244, 114, 182, 0.15); z-index: 0; pointer-events: none; }
+    .shape-1 { width: 120px; height: 120px; top: 15%; left: 5%; transform: rotate(45deg); animation: spinFloat 15s infinite linear; border-radius: 20px; }
+    .shape-2 { width: 250px; height: 250px; bottom: 10%; right: 5%; border-radius: 50%; animation: spinFloat 25s infinite linear reverse; border-style: dashed; }
+    .shape-3 { width: 80px; height: 80px; top: 60%; left: 8%; border-radius: 50%; animation: spinFloat 18s infinite linear reverse; border-color: rgba(255, 255, 255, 0.1); }
+    @keyframes spinFloat { 0% { transform: rotate(0deg) translateY(0); } 50% { transform: rotate(180deg) translateY(-30px); } 100% { transform: rotate(360deg) translateY(0); } }
+
+    nav, header, section, footer { position: relative; z-index: 10; }
+
+    /* ==========================================================================
+       TYPOGRAPHY
+       ========================================================================== */
+    .css-logo {
+      font-size: 32px; font-weight: 700; font-style: italic;
+      background: linear-gradient(135deg, var(--accent-light), var(--accent), #8b5cf6);
+      -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+      filter: drop-shadow(0 0 12px rgba(244, 114, 182, 0.6));
+      letter-spacing: 2px; text-transform: uppercase; display: inline-block;
+      transition: transform var(--transition-bounce), filter var(--transition-smooth);
+    }
+    .css-logo:hover { transform: scale(1.1) rotate(-3deg); filter: drop-shadow(0 0 30px rgba(244, 114, 182, 1)); }
+
+    .heading-huge { font-size: 80px; font-weight: 700; line-height: 1.1; text-transform: uppercase; letter-spacing: -1px; }
+    .heading-section { font-size: 46px; font-weight: 700; line-height: 1.2; text-transform: uppercase; margin-bottom: 16px; }
+    
+    .section-tag { 
+      display: inline-flex; align-items: center; gap: 8px; 
+      font-size: 12px; font-weight: 700; letter-spacing: 0.15em; 
+      text-transform: uppercase; color: var(--accent); margin-bottom: 20px; 
+      padding: 6px 16px; background: rgba(244, 114, 182, 0.05); border-radius: 100px; border: 1px solid rgba(244, 114, 182, 0.2);
+    }
+    .section-tag::before { 
+      content: ''; display: block; width: 6px; height: 6px; 
+      background: var(--accent); border-radius: 50%; 
+      box-shadow: 0 0 10px var(--accent); animation: pulseDot 2s infinite; 
+    }
+    @keyframes pulseDot { 0%, 100% { transform: scale(1); opacity: 1; } 50% { transform: scale(1.5); opacity: 0.5; } }
+
+    .text-gradient {
+      background: linear-gradient(to right, var(--accent), #8b5cf6, var(--accent));
+      background-size: 200% auto; -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+      animation: shineText 4s linear infinite;
+    }
+    @keyframes shineText { to { background-position: 200% center; } }
+
+    /* ==========================================================================
+       BUTTONS
+       ========================================================================== */
+    .btn { 
+      display: inline-flex; align-items: center; justify-content: center; gap: 8px; 
+      padding: 14px 28px; border-radius: 8px; font-size: 13px; font-weight: 700; 
+      text-transform: uppercase; letter-spacing: 0.05em; transition: all var(--transition-bounce); 
+      cursor: pointer; border: none; position: relative; overflow: hidden; z-index: 1;
+      min-width: 140px;
+    }
+    .btn-primary { background: var(--accent); color: #000; box-shadow: 0 0 20px var(--glass-glow); }
+    .btn-primary::before {
+      content: ''; position: absolute; top: 0; left: -100%; width: 50%; height: 100%;
+      background: linear-gradient(to right, transparent, rgba(255,255,255,0.4), transparent);
+      transform: skewX(-25deg); transition: left 0.6s ease; z-index: -1;
+    }
+    .btn-primary:hover::before { left: 150%; }
+    .btn-primary:hover { background: var(--accent-hover); transform: translateY(-5px) scale(1.05); box-shadow: 0 15px 30px rgba(244, 114, 182, 0.5); }
+    
+    .btn-secondary { background: rgba(255, 255, 255, 0.05); color: var(--text-light); border: 1px solid var(--glass-border); backdrop-filter: blur(10px); }
+    .btn-secondary:hover { background: rgba(255, 255, 255, 0.1); border-color: rgba(244, 114, 182, 0.5); transform: translateY(-5px) scale(1.05); box-shadow: 0 10px 20px rgba(0,0,0,0.5); }
+
+    /* ==========================================================================
+       ORBS
+       ========================================================================== */
+    .bg-orb { position: absolute; border-radius: 50%; filter: blur(140px); z-index: 0; pointer-events: none; opacity: 0.3; }
+    .orb-1 { width: 600px; height: 600px; background: rgba(244, 114, 182, 0.25); top: -10%; right: -10%; animation: floatOrb 15s ease-in-out infinite; }
+    .orb-2 { width: 700px; height: 700px; background: rgba(139, 92, 246, 0.15); bottom: -10%; left: -10%; animation: floatOrb 20s ease-in-out infinite reverse; }
+    @keyframes floatOrb { 0%, 100% { transform: translate(0, 0) scale(1); opacity: 0.2; } 50% { transform: translate(-50px, 50px) scale(1.1); opacity: 0.4; } }
+
+    /* ==========================================================================
+       NAVIGATION (CENTERED & UNIFORM BUTTONS)
+       ========================================================================== */
+    nav { 
+      position: fixed; top: 0; left: 0; right: 0; height: 80px; 
+      background: rgba(11, 10, 15, 0.75); backdrop-filter: blur(24px); 
+      border-bottom: 1px solid var(--glass-border); z-index: 100; 
+      display: grid; grid-template-columns: 200px 1fr 420px; align-items: center; padding: 0 40px; 
+    }
+    .nav-brand { display: flex; align-items: center; justify-self: start; z-index: 2; }
+    .nav-links { display: flex; gap: 22px; font-size: 12px; font-weight: 600; letter-spacing: 0.08em; text-transform: uppercase; color: var(--text-muted); z-index: 2; justify-self: center; }
+    .nav-links a { position: relative; padding: 8px 0; transition: color 0.3s; display: flex; align-items: center; gap: 5px; }
+    .nav-links a .svg-icon { width: 14px; height: 14px; opacity: 0.6; transition: opacity 0.3s, color 0.3s, transform 0.3s; }
+    .nav-links a:hover .svg-icon { opacity: 1; color: var(--accent); transform: scale(1.2) rotate(10deg); }
+    .nav-links a::after { 
+      content: ''; position: absolute; bottom: 0; left: 0; width: 100%; height: 2px; 
+      background: var(--accent); transform: scaleX(0); transform-origin: right; 
+      transition: transform var(--transition-bounce); box-shadow: 0 0 10px var(--accent);
+    }
+    .nav-links a:hover { color: var(--text-light); }
+    .nav-links a:hover::after { transform: scaleX(1); transform-origin: left; }
+    .nav-actions { display: flex; align-items: center; justify-self: end; gap: 10px; z-index: 2; }
+    .nav-actions .btn { width: 130px; padding: 12px 0; font-size: 12px; }
+
+    /* ==========================================================================
+       REVEAL ANIMATIONS
+       ========================================================================== */
+    .reveal { 
+      opacity: 0; transform: translateY(60px) scale(0.95); filter: blur(8px);
+      transition: opacity var(--transition-expo), transform var(--transition-expo), filter var(--transition-expo); 
+    }
+    .reveal.active { opacity: 1; transform: translateY(0) scale(1); filter: blur(0); }
+    
+    .reveal-left { opacity: 0; transform: translateX(-60px); transition: all var(--transition-expo); }
+    .reveal-left.active { opacity: 1; transform: translateX(0); }
+    
+    .reveal-right { opacity: 0; transform: translateX(60px); transition: all var(--transition-expo); }
+    .reveal-right.active { opacity: 1; transform: translateX(0); }
+
+    .delay-1 { transition-delay: 0.1s; }
+    .delay-2 { transition-delay: 0.2s; }
+    .delay-3 { transition-delay: 0.3s; }
+
+    /* ==========================================================================
+       HERO (UNIQUE & UPGRADED)
+       ========================================================================== */
+    .hero { 
+      min-height: 100vh; display: flex; align-items: center; justify-content: center; 
+      text-align: center; padding: 140px 20px 100px; 
+      background: var(--bg-dark);
+      position: relative;
+      overflow: hidden;
+    }
+    
+    .hero-bg-glow {
+      position: absolute; top: 50%; left: 50%;
+      transform: translate(-50%, -50%);
+      width: 90vw; height: 90vw;
+      max-width: 1000px; max-height: 1000px;
+      background: radial-gradient(circle, rgba(244, 114, 182, 0.2) 0%, transparent 60%);
+      filter: blur(80px);
+      z-index: 1;
+      pointer-events: none;
+      animation: pulseGlow 6s infinite alternate;
+    }
+    @keyframes pulseGlow {
+      0% { transform: translate(-50%, -50%) scale(1); opacity: 0.6; }
+      100% { transform: translate(-50%, -50%) scale(1.1); opacity: 1; }
+    }
+
+    /* Floating UI Elements */
+    .floating-ui {
+      position: absolute;
+      background: rgba(18, 16, 24, 0.7);
+      backdrop-filter: blur(12px);
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      border-radius: 12px;
+      padding: 12px 20px;
+      font-size: 13px;
+      font-weight: 700;
+      color: var(--text-light);
+      z-index: 3;
+      box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      pointer-events: none;
+    }
+    .floating-ui::before { content: ''; width: 8px; height: 8px; border-radius: 50%; background: var(--accent); box-shadow: 0 0 10px var(--accent); }
+    .floating-ui.f1 { top: 25%; left: 15%; animation: float1 6s ease-in-out infinite; }
+    .floating-ui.f2 { top: 35%; right: 12%; animation: float2 7s ease-in-out infinite 1s; }
+    .floating-ui.f3 { bottom: 25%; left: 20%; animation: float1 8s ease-in-out infinite 2s; }
+    .floating-ui.f4 { bottom: 20%; right: 18%; animation: float2 5s ease-in-out infinite 0.5s; }
+    
+    @keyframes float1 { 0%, 100% { transform: translateY(0) rotate(-2deg); } 50% { transform: translateY(-20px) rotate(2deg); } }
+    @keyframes float2 { 0%, 100% { transform: translateY(0) rotate(2deg); } 50% { transform: translateY(20px) rotate(-2deg); } }
+
+    .hero-content { max-width: 1000px; z-index: 10; display: flex; flex-direction: column; align-items: center; position: relative; }
+    
+    .hero-logo { margin-bottom: 30px; position: relative; }
+    .hero-logo .css-logo { font-size: 140px; filter: drop-shadow(0 0 50px rgba(244, 114, 182, 0.6)); animation: pulseLogo 4s infinite alternate; position: relative; z-index: 2; }
+    
+    /* Orbit Ring */
+    .hero-orbit {
+      position: absolute; top: 50%; left: 50%;
+      transform: translate(-50%, -50%);
+      width: 400px; height: 400px;
+      border: 1px dashed rgba(244, 114, 182, 0.3);
+      border-radius: 50%;
+      z-index: 1;
+      animation: spinOrbit 20s linear infinite;
+      pointer-events: none;
+    }
+    .hero-orbit::before {
+      content: ''; position: absolute; top: -5px; left: 50%;
+      width: 10px; height: 10px; background: var(--accent);
+      border-radius: 50%; box-shadow: 0 0 20px var(--accent);
+    }
+    @keyframes spinOrbit { 0% { transform: translate(-50%, -50%) rotate(0deg); } 100% { transform: translate(-50%, -50%) rotate(360deg); } }
+
+    .hero p { font-size: 20px; color: #d1d5db; max-width: 650px; margin: 0 auto 50px; font-weight: 500; position: relative; z-index: 2; }
+    .hero-actions { display: flex; gap: 20px; justify-content: center; flex-wrap: wrap; position: relative; z-index: 2; }
+
+    /* ==========================================================================
+       MARQUEE
+       ========================================================================== */
+    .section-marquee {
+      padding: 20px 0; background: var(--bg-darker); 
+      border-top: 1px solid var(--glass-border); border-bottom: 1px solid var(--glass-border);
+      overflow: hidden; white-space: nowrap; position: relative; z-index: 10; display: flex; align-items: center;
+    }
+    .marquee-track { display: flex; animation: scrollText 30s linear infinite; }
+    .marquee-track span { 
+      font-size: 22px; font-weight: 700; text-transform: uppercase; letter-spacing: 2px; 
+      color: rgba(255, 255, 255, 0.12); margin-right: 40px; display: flex; align-items: center; gap: 20px; 
+    }
+    .marquee-track span .svg-icon { width: 16px; height: 16px; color: var(--accent); opacity: 0.6; }
+    @keyframes scrollText { 0% { transform: translateX(0); } 100% { transform: translateX(-50%); } }
+
+    /* ==========================================================================
+       STATS
+       ========================================================================== */
+    .section-stats { padding: 100px 50px; background: rgba(11, 10, 15, 0.95); text-align: center; border-bottom: 1px solid var(--glass-border); }
+    .stats-container { display: flex; justify-content: center; gap: 80px; flex-wrap: wrap; max-width: 1200px; margin: 0 auto; }
+    .stat-item { display: flex; flex-direction: column; align-items: center; transition: transform var(--transition-bounce); }
+    .stat-item:hover { transform: scale(1.15); }
+    .stat-icon { width: 40px; height: 40px; margin-bottom: 15px; color: var(--accent); }
+    .stat-icon svg { width: 100%; height: 100%; }
+    .stat-number { font-size: 72px; font-weight: 700; color: var(--accent); line-height: 1; margin-bottom: 10px; text-shadow: 0 0 20px rgba(244, 114, 182, 0.3); }
+    .stat-label { font-size: 14px; text-transform: uppercase; letter-spacing: 0.15em; color: var(--text-muted); font-weight: 600; }
+
+    /* ==========================================================================
+       FEATURES
+       ========================================================================== */
+    .section-features { padding: 140px 50px; background: var(--bg-dark); position: relative; }
+    .features-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: 30px; max-width: 1300px; margin: 60px auto 0; perspective: 1000px; }
+    
+    .feature-card { 
+      background: var(--bg-panel); border: 1px solid var(--glass-border); border-radius: 20px; 
+      padding: 40px; backdrop-filter: blur(20px); 
+      transition: transform 0.1s ease, border-color 0.4s ease, box-shadow 0.4s ease; 
+      position: relative; overflow: hidden; transform-style: preserve-3d;
+    }
+    
+    .feature-card::after {
+      content: ''; position: absolute; inset: -1px; z-index: -1;
+      background: linear-gradient(45deg, transparent, rgba(244, 114, 182, 0.5), transparent);
+      border-radius: 20px; opacity: 0; transition: opacity 0.4s ease;
+    }
+    .feature-card:hover::after { opacity: 1; animation: borderSpin 3s linear infinite; }
+    @keyframes borderSpin { 0% { filter: hue-rotate(0deg); } 100% { filter: hue-rotate(360deg); } }
+
+    .feature-card::before { 
+      content: ''; position: absolute; inset: 0; 
+      background: linear-gradient(135deg, rgba(244, 114, 182, 0.1) 0%, transparent 100%); 
+      opacity: 0; transition: opacity 0.4s ease; pointer-events: none; z-index: 0;
+    }
+    .feature-card:hover::before { opacity: 1; }
+    .feature-card:hover { 
+      border-color: rgba(244, 114, 182, 0.5); 
+      box-shadow: 0 20px 40px rgba(0,0,0,0.8), 0 0 40px rgba(244, 114, 182, 0.2); 
+    }
+    
+    .feature-icon, .feature-card h3, .feature-card p { transform: translateZ(30px); position: relative; z-index: 1; }
+    
+    .feature-icon { 
+      width: 64px; height: 64px; border-radius: 16px; 
+      background: rgba(244, 114, 182, 0.1); display: flex; align-items: center; justify-content: center; 
+      margin-bottom: 24px; border: 1px solid rgba(244, 114, 182, 0.2); 
+      transition: transform var(--transition-bounce), background 0.3s, border-color 0.3s; 
+      color: var(--white);
+    }
+    .feature-icon svg { width: 32px; height: 32px; stroke: currentColor; fill: none; stroke-width: 2; transition: transform 0.3s; }
+    .feature-card:hover .feature-icon { transform: translateZ(50px) scale(1.1) rotate(5deg); background: rgba(244, 114, 182, 0.2); }
+    .feature-card:hover .feature-icon svg { transform: rotate(-5deg) scale(1.1); }
+    
+    .feature-card h3 { font-size: 22px; font-weight: 700; text-transform: uppercase; margin-bottom: 12px; letter-spacing: 0.05em; }
+    .feature-card p { color: var(--text-muted); font-size: 15px; line-height: 1.8; }
+
+    /* ==========================================================================
+       MODULES
+       ========================================================================== */
+    .section-modules { padding: 140px 50px; background: var(--bg-darker); position: relative; overflow: hidden; }
+    .modules-container { max-width: 1300px; margin: 60px auto 0; display: grid; grid-template-columns: repeat(3, 1fr); gap: 40px; }
+    
+    .module-category { 
+      background: rgba(255, 255, 255, 0.02); border: 1px solid var(--glass-border); 
+      border-radius: 24px; padding: 40px; transition: all 0.4s ease;
+    }
+    .module-category:hover { border-color: rgba(244, 114, 182, 0.3); box-shadow: 0 10px 30px rgba(0,0,0,0.5); background: rgba(255, 255, 255, 0.03); }
+    
+    .category-header { display: flex; align-items: center; gap: 15px; margin-bottom: 30px; padding-bottom: 20px; border-bottom: 1px solid rgba(255, 255, 255, 0.05); }
+    .category-icon { width: 32px; height: 32px; color: var(--white); }
+    .category-icon svg { width: 100%; height: 100%; stroke: currentColor; fill: none; stroke-width: 2; }
+    .category-title { font-size: 24px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em; }
+    
+    .module-list { display: flex; flex-direction: column; gap: 15px; }
+    
+    .module-item { 
+      background: rgba(255, 255, 255, 0.03); border-radius: 12px; border: 1px solid transparent; 
+      transition: all 0.4s cubic-bezier(0.25, 1, 0.5, 1); cursor: pointer; overflow: hidden;
+    }
+    .module-header { display: flex; justify-content: space-between; align-items: center; padding: 15px 20px; }
+    .module-item:hover { background: rgba(244, 114, 182, 0.08); border-color: rgba(244, 114, 182, 0.3); transform: translateX(8px) scale(1.02); }
+    
+    .module-name { font-weight: 600; font-size: 16px; display: flex; align-items: center; gap: 10px; }
+    .module-name::after { 
+      content: '+'; color: var(--accent); font-weight: 700; font-size: 18px; 
+      transition: transform var(--transition-bounce); 
+    }
+    .module-item.active .module-name::after { transform: rotate(135deg); color: #fff; }
+    
+    .module-tag { font-size: 11px; padding: 4px 10px; border-radius: 100px; font-weight: 700; text-transform: uppercase; }
+    .module-tag.combat { background: rgba(239, 68, 68, 0.2); color: #fca5a5; }
+    .module-tag.render { background: rgba(56, 189, 248, 0.2); color: #7dd3fc; }
+    .module-tag.utility { background: rgba(74, 222, 128, 0.2); color: #86efac; }
+    .module-tag.movement { background: rgba(250, 204, 21, 0.2); color: #fef08a; }
+    .module-tag.client { background: rgba(192, 132, 252, 0.2); color: #d8b4fe; }
+
+    .module-desc { 
+      max-height: 0; opacity: 0; padding: 0 20px; color: var(--text-muted); font-size: 14px; line-height: 1.6; 
+      transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1); 
+    }
+    .module-item.active { background: rgba(244, 114, 182, 0.1); border-color: rgba(244, 114, 182, 0.5); box-shadow: 0 5px 15px rgba(0,0,0,0.3); }
+    .module-item.active .module-desc { max-height: 150px; opacity: 1; padding: 0 20px 20px 20px; }
+
+    /* ==========================================================================
+       INTERACTIVE UI (YOUR IMAGES)
+       ========================================================================== */
+    .section-ui { display: flex; align-items: center; justify-content: center; gap: 80px; padding: 150px 50px; background: var(--bg-dark); position: relative; overflow: hidden; border-top: 1px solid var(--glass-border); border-bottom: 1px solid var(--glass-border); }
+    .ui-preview { flex: 1; max-width: 800px; border-radius: 24px; overflow: hidden; border: 1px solid var(--glass-border); box-shadow: 0 40px 100px rgba(0,0,0,0.9); position: relative; z-index: 2; transition: transform var(--transition-bounce); }
+    .ui-preview::before { content: ''; position: absolute; inset: 0; box-shadow: inset 0 0 40px rgba(244, 114, 182, 0.1); pointer-events: none; z-index: 5; }
+    .ui-preview:hover { transform: scale(1.03) rotate(1deg); box-shadow: 0 50px 120px rgba(0,0,0,1), 0 0 40px rgba(244, 114, 182, 0.2); }
+    .ui-preview img { width: 100%; height: auto; display: block; transition: opacity 0.6s; }
+    
+    .ui-info { flex: 1; max-width: 450px; z-index: 2; text-align: left; }
+    .ui-info p { color: var(--text-muted); font-size: 16px; margin-bottom: 40px; line-height: 1.8; transition: opacity 0.4s ease; }
+    .toggle-container { display: inline-flex; background: rgba(255, 255, 255, 0.04); border: 1px solid var(--glass-border); border-radius: 14px; padding: 8px; position: relative; }
+    .toggle-btn { padding: 14px 32px; border-radius: 10px; font-size: 14px; font-weight: 700; letter-spacing: 0.1em; color: var(--text-muted); background: transparent; border: none; cursor: pointer; transition: color 0.4s; position: relative; z-index: 2; }
+    .toggle-btn.active { color: #000; }
+    .toggle-bg { position: absolute; top: 8px; left: 8px; height: calc(100% - 16px); width: calc(50% - 8px); background: var(--accent); border-radius: 10px; transition: transform var(--transition-bounce); z-index: 1; box-shadow: 0 0 25px rgba(244, 114, 182, 0.4); }
+
+    /* ==========================================================================
+       SETUP / REQUIREMENTS (EXPANDED)
+       ========================================================================== */
+    .section-setup { padding: 140px 50px; background: var(--bg-darker); position: relative; }
+    .setup-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 40px; max-width: 1000px; margin: 60px auto 0; }
+    
+    .setup-card { 
+      background: var(--bg-panel); border: 1px solid var(--glass-border); border-radius: 24px; 
+      padding: 40px; display: flex; align-items: center; gap: 30px; 
+      transition: all 0.4s ease; text-decoration: none; color: inherit;
+      position: relative; overflow: hidden;
+    }
+    .setup-card::before {
+      content: ''; position: absolute; inset: 0; 
+      background: linear-gradient(135deg, rgba(244, 114, 182, 0.1) 0%, transparent 100%); 
+      opacity: 0; transition: opacity 0.4s ease; pointer-events: none;
+    }
+    .setup-card:hover::before { opacity: 1; }
+    .setup-card:hover { 
+      transform: translateY(-10px) scale(1.02); 
+      border-color: rgba(244, 114, 182, 0.5); 
+      box-shadow: 0 20px 50px rgba(0,0,0,0.7), 0 0 30px rgba(244, 114, 182, 0.15); 
+    }
+
+    .setup-icon { 
+      width: 80px; height: 80px; flex-shrink: 0; border-radius: 20px; 
+      background: rgba(255, 255, 255, 0.05); padding: 10px; 
+      border: 1px solid rgba(255, 255, 255, 0.1); transition: transform 0.4s;
+      display: flex; align-items: center; justify-content: center;
+    }
+    .setup-card:hover .setup-icon { transform: scale(1.1) rotate(5deg); }
+    .setup-icon img { width: 100%; height: 100%; object-fit: contain; }
+
+    .setup-text h3 { font-size: 24px; font-weight: 700; text-transform: uppercase; margin-bottom: 8px; }
+    .setup-text p { color: var(--text-muted); font-size: 15px; line-height: 1.6; margin-bottom: 15px; }
+    .setup-text .btn { padding: 10px 20px; font-size: 12px; min-width: auto; }
+    
+    .setup-icon.rain-icon {
+      background: rgba(244, 114, 182, 0.1); border-color: rgba(244, 114, 182, 0.3);
+    }
+    .setup-icon.rain-icon img {
+      filter: drop-shadow(0 0 10px rgba(244,114,182,0.5));
+    }
+
+    /* Step Guide */
+    .setup-steps { max-width: 800px; margin: 80px auto 0; display: flex; flex-direction: column; gap: 30px; }
+    .setup-step { display: flex; gap: 20px; background: var(--bg-panel); border: 1px solid var(--glass-border); border-radius: 16px; padding: 30px; transition: 0.3s; }
+    .setup-step:hover { transform: translateX(10px); border-color: rgba(244, 114, 182, 0.4); }
+    .step-num { width: 40px; height: 40px; border-radius: 50%; background: rgba(244, 114, 182, 0.1); border: 1px solid rgba(244, 114, 182, 0.3); color: var(--accent); display: flex; align-items: center; justify-content: center; font-weight: 700; font-size: 20px; flex-shrink: 0; }
+    .step-content h4 { font-size: 18px; font-weight: 700; margin-bottom: 8px; text-transform: uppercase; }
+    .step-content p { color: var(--text-muted); font-size: 15px; line-height: 1.6; }
+    .step-content code { background: rgba(255,255,255,0.1); padding: 2px 6px; border-radius: 4px; font-family: monospace; color: var(--accent-light); }
+
+    /* ==========================================================================
+       CHANGELOG
+       ========================================================================== */
+    .section-changelog { padding: 140px 50px; background: var(--bg-dark); }
+    .changelog-container { max-width: 900px; margin: 60px auto 0; position: relative; }
+    .changelog-container::before { content: ''; position: absolute; top: 0; left: 20px; bottom: 0; width: 2px; background: rgba(255, 255, 255, 0.05); }
+    
+    .changelog-item { position: relative; padding-left: 60px; margin-bottom: 50px; transition: transform 0.3s ease; }
+    .changelog-item:hover { transform: translateX(15px) scale(1.02); }
+    
+    .changelog-dot { 
+      position: absolute; left: 11px; top: 5px; width: 20px; height: 20px; 
+      background: var(--bg-dark); border: 3px solid var(--accent); border-radius: 50%; 
+      box-shadow: 0 0 15px rgba(244, 114, 182, 0.5); z-index: 3; transition: all 0.3s;
+    }
+    .changelog-item:hover .changelog-dot { transform: scale(1.3); background: var(--accent); }
+    
+    .changelog-date { font-size: 13px; font-weight: 700; color: var(--accent); text-transform: uppercase; letter-spacing: 0.1em; margin-bottom: 8px; display: block; }
+    .changelog-title { font-size: 20px; font-weight: 700; margin-bottom: 12px; }
+    .changelog-desc { color: var(--text-muted); font-size: 15px; line-height: 1.7; }
+    .changelog-tags { display: flex; gap: 10px; margin-top: 15px; }
+
+    /* ==========================================================================
+       TESTIMONIALS
+       ========================================================================== */
+    .section-testimonials { padding: 140px 50px; background: var(--bg-darker); }
+    .testimonials-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(350px, 1fr)); gap: 30px; max-width: 1200px; margin: 60px auto 0; perspective: 1000px; }
+    
+    .testimonial-card { 
+      background: var(--bg-panel); border: 1px solid var(--glass-border); 
+      padding: 45px; border-radius: 24px; position: relative; transform-style: preserve-3d;
+      transition: transform 0.1s ease, border-color 0.4s ease, box-shadow 0.4s ease; 
+    }
+    .testimonial-card:hover { border-color: rgba(244, 114, 182, 0.4); box-shadow: 0 20px 50px rgba(0,0,0,0.7), 0 0 20px rgba(244, 114, 182, 0.15); }
+    
+    .quote-icon { position: absolute; top: 20px; right: 30px; width: 60px; height: 60px; color: var(--accent); opacity: 0.15; transition: all 0.3s; transform: translateZ(10px); }
+    .quote-icon svg { width: 100%; height: 100%; fill: currentColor; }
+    .testimonial-card:hover .quote-icon { opacity: 0.3; transform: translateZ(30px) rotate(10deg) scale(1.1); }
+    
+    .testimonial-text { font-size: 16px; color: var(--text-light); margin-bottom: 30px; line-height: 1.8; position: relative; z-index: 2; transform: translateZ(20px); }
+    .testimonial-user { display: flex; align-items: center; gap: 15px; transform: translateZ(30px); }
+    .user-avatar { width: 50px; height: 50px; border-radius: 50%; background: #2d3748; display: flex; align-items: center; justify-content: center; font-weight: 700; color: var(--accent); font-size: 20px; transition: background 0.3s; }
+    .testimonial-card:hover .user-avatar { background: var(--accent); color: #000; }
+    .user-info h4 { font-size: 16px; font-weight: 700; margin-bottom: 2px; letter-spacing: 2px; }
+    .user-info p { font-size: 13px; color: var(--text-muted); }
+
+    /* ==========================================================================
+       FAQ
+       ========================================================================== */
+    .section-faq { padding: 140px 50px; background: var(--bg-dark); }
+    .faq-container { max-width: 800px; margin: 60px auto 0; }
+    
+    .faq-item { 
+      background: rgba(255, 255, 255, 0.02); border: 1px solid var(--glass-border); 
+      border-radius: 16px; margin-bottom: 20px; overflow: hidden; transition: all 0.3s ease; 
+    }
+    .faq-item:hover { border-color: rgba(244, 114, 182, 0.4); box-shadow: 0 5px 15px rgba(0,0,0,0.3); transform: translateY(-2px); }
+    .faq-item.active { border-color: rgba(244, 114, 182, 0.6); background: rgba(244, 114, 182, 0.03); }
+    
+    .faq-question { padding: 24px 30px; font-size: 18px; font-weight: 700; cursor: pointer; display: flex; justify-content: space-between; align-items: center; transition: color 0.3s; }
+    .faq-item:hover .faq-question { color: var(--accent-light); }
+    
+    .faq-answer { padding: 0 30px; max-height: 0; overflow: hidden; color: var(--text-muted); font-size: 15px; line-height: 1.8; transition: all 0.5s cubic-bezier(0.4, 0, 0.2, 1); }
+    .faq-item.active .faq-answer { padding: 0 30px 24px 30px; max-height: 250px; }
+    
+    .faq-icon { color: var(--accent); font-size: 24px; transition: transform var(--transition-bounce); }
+    .faq-item.active .faq-icon { transform: rotate(135deg); }
+
+    /* ==========================================================================
+       FOOTER
+       ========================================================================== */
+    footer { background: rgba(5, 4, 8, 0.95); padding: 100px 50px 0 50px; position: relative; overflow: hidden; border-top: 1px solid rgba(255, 255, 255, 0.05); }
+    .footer-container { max-width: 1400px; margin: 0 auto; position: relative; z-index: 2; }
+    .footer-grid { display: grid; grid-template-columns: 2fr 1fr 1fr 1fr 1fr; gap: 40px; margin-bottom: 80px; }
+    .footer-brand .css-logo { margin-bottom: 24px; font-size: 32px; }
+    .footer-brand p { color: var(--text-muted); font-size: 15px; line-height: 1.8; margin-bottom: 30px; }
+    .version-pill { display: inline-flex; align-items: center; gap: 8px; padding: 8px 20px; border: 1px solid rgba(255, 255, 255, 0.1); border-radius: 100px; font-size: 13px; font-weight: 600; color: var(--text-muted); background: rgba(255,255,255,0.02); transition: all 0.3s; }
+    .version-pill:hover { border-color: rgba(74, 222, 128, 0.5); color: #fff; transform: scale(1.05); }
+    .version-pill::before { content: ''; width: 8px; height: 8px; background: #4ade80; border-radius: 50%; box-shadow: 0 0 10px #4ade80; animation: pulseDot 2s infinite; }
+    
+    .footer-col h4 { font-size: 14px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.1em; color: #fff; margin-bottom: 30px; }
+    .footer-col ul { display: flex; flex-direction: column; gap: 20px; }
+    .footer-col a { font-size: 15px; color: var(--text-muted); transition: color 0.3s, transform 0.3s; display: inline-flex; align-items: center; gap: 8px; }
+    .footer-col a .svg-icon { width: 14px; height: 14px; opacity: 0.6; transition: all 0.3s; }
+    .footer-col a:hover { color: var(--accent); transform: translateX(8px); }
+    .footer-col a:hover .svg-icon { opacity: 1; }
+
+    .footer-end { position: relative; margin-top: 40px; overflow: hidden; padding-top: 40px; }
+    .footer-watermark { 
+      position: absolute; bottom: -20px; left: 50%; transform: translateX(-50%); 
+      font-size: 28vw; font-weight: 700; line-height: 0.6; color: rgba(244, 114, 182, 0.06); 
+      letter-spacing: 0.02em; white-space: nowrap; pointer-events: none; user-select: none; z-index: 1; 
+      text-shadow: 0 0 50px rgba(244, 114, 182, 0.1);
+    }
+    .footer-end::after {
+      content: ''; position: absolute; bottom: 0; left: 0; width: 100%; height: 200px;
+      background: linear-gradient(to bottom, transparent, var(--bg-darker)); pointer-events: none; z-index: 2;
+    }
+    .footer-bottom { 
+      position: relative; z-index: 3; border-top: 1px solid rgba(255, 255, 255, 0.05); 
+      padding: 30px 0; display: flex; justify-content: space-between; align-items: center; font-size: 14px; color: var(--text-muted); 
+    }
+
+    /* ==========================================================================
+       RESPONSIVE
+       ========================================================================== */
+    @media (max-width: 1400px) { .nav-links { gap: 15px; font-size: 11px; } }
+    @media (max-width: 1200px) { 
+      .modules-container { grid-template-columns: 1fr 1fr; } 
+      .nav-actions .btn { width: 110px; font-size: 11px; }
+      .setup-grid { grid-template-columns: 1fr; }
+      nav { grid-template-columns: 150px 1fr 350px; }
+      .floating-ui { display: none; }
+    }
+    @media (max-width: 1024px) {
+      .section-ui { flex-direction: column; gap: 50px; padding: 100px 30px; }
+      .ui-preview { max-width: 100%; }
+      .ui-info { text-align: center; max-width: 100%; }
+      .footer-grid { grid-template-columns: 1fr 1fr 1fr; }
+      .nav-links { display: none; }
+      nav { grid-template-columns: 1fr auto; }
+    }
+    @media (max-width: 768px) {
+      .heading-huge { font-size: 52px; }
+      .hero-logo .css-logo { font-size: 80px; }
+      .hero-orbit { width: 250px; height: 250px; }
+      nav { padding: 0 20px; }
+      .nav-brand .css-logo { font-size: 24px; }
+      .features-grid, .testimonials-grid { grid-template-columns: 1fr; }
+      .modules-container { grid-template-columns: 1fr; }
+      .footer-grid { grid-template-columns: 1fr 1fr; gap: 40px; }
+      .footer-bottom { flex-direction: column; gap: 15px; text-align: center; }
+      .footer-watermark { font-size: 35vw; }
+      .stats-container { flex-direction: column; gap: 40px; }
+      .setup-card { flex-direction: column; text-align: center; }
+    }
+
+    /* ==========================================================================
+       POLISH LAYER
+       ========================================================================== */
+    :root {
+      --ease-out: cubic-bezier(0.22, 1, 0.36, 1);
+      --ease-in-out: cubic-bezier(0.65, 0, 0.35, 1);
+      --transition-smooth: 0.5s var(--ease-out);
+      --transition-bounce: 0.6s var(--ease-out);
+      --transition-expo: 1.1s var(--ease-out);
+    }
+    html.lenis, html.lenis body { height: auto; }
+    .lenis.lenis-smooth { scroll-behavior: auto !important; }
+    .lenis.lenis-stopped { overflow: hidden; }
+    body { cursor: default; -webkit-font-smoothing: antialiased; text-rendering: optimizeLegibility; }
+    a, button, .module-item, .faq-question, .toggle-btn { cursor: pointer; }
+    ::selection { background: rgba(244, 114, 182, 0.35); color: #fff; }
+
+    /* Calmer background */
+    .bg-scanlines { opacity: 0.12; }
+    .bg-grid {
+      -webkit-mask-image: radial-gradient(ellipse at 50% 30%, #000 20%, transparent 75%);
+              mask-image: radial-gradient(ellipse at 50% 30%, #000 20%, transparent 75%);
+    }
+    #scroll-progress { transition: none; height: 2px; transform-origin: left; width: 100% !important; transform: scaleX(0); }
+
+    /* Intro curtain with percentage */
+    #intro {
+      position: fixed; inset: 0; z-index: 20000; background: var(--bg-darker);
+      display: flex; align-items: center; justify-content: center; flex-direction: column; gap: 22px;
+      animation: introOut 0.9s var(--ease-in-out) 1s forwards; pointer-events: none;
+    }
+    #intro .css-logo { font-size: 56px; animation: introLogo 1s var(--ease-out) both; }
+    #intro .intro-bar { width: 140px; height: 2px; background: rgba(255,255,255,0.08); border-radius: 2px; overflow: hidden; }
+    #intro .intro-bar::after {
+      content: ''; display: block; height: 100%; width: 100%;
+      background: linear-gradient(90deg, var(--accent-light), var(--accent), #8b5cf6);
+      transform: scaleX(0); transform-origin: left; animation: introBar 0.9s var(--ease-in-out) 0.1s forwards;
+    }
+    #intro-percentage {
+      font-size: 12px; font-weight: 700; color: var(--text-muted); letter-spacing: 2px;
+      margin-top: 5px;
+    }
+    @keyframes introLogo { from { opacity: 0; transform: translateY(20px); filter: blur(10px); } to { opacity: 1; transform: none; filter: blur(0); } }
+    @keyframes introBar { to { transform: scaleX(1); } }
+    @keyframes introOut { to { clip-path: inset(0 0 100% 0); visibility: hidden; } }
+
+    /* Nav: floating pill that tightens on scroll */
+    nav {
+      transition: height 0.5s var(--ease-out), background 0.5s var(--ease-out), box-shadow 0.5s var(--ease-out), border-color 0.5s var(--ease-out);
+      background: rgba(11, 10, 15, 0.35); border-bottom-color: transparent;
+      animation: navIn 1s var(--ease-out) 1.4s both;
+    }
+    nav.scrolled { height: 64px; background: rgba(11, 10, 15, 0.8); border-bottom-color: var(--glass-border); box-shadow: 0 10px 40px rgba(0,0,0,0.35); }
+    @keyframes navIn { from { opacity: 0; transform: translateY(-100%); } to { opacity: 1; transform: none; } }
+    .nav-links a.current { color: var(--text-light); }
+    .nav-links a.current::after { transform: scaleX(1); transform-origin: left; }
+    .nav-links a::after { height: 1px; box-shadow: none; }
+    .css-logo:hover { transform: scale(1.04); filter: drop-shadow(0 0 20px rgba(244, 114, 182, 0.8)); }
+
+    /* Hero entrance */
+    .hero { overflow: hidden; }
+    .hero-content > * { will-change: transform, opacity; }
+    .hero-logo .css-logo { animation: pulseLogo 5s ease-in-out infinite alternate; }
+    @keyframes pulseLogo { 0% { filter: drop-shadow(0 0 25px rgba(244, 114, 182, 0.35)); } 100% { filter: drop-shadow(0 0 60px rgba(244, 114, 182, 0.7)); } }
+    .clip-reveal { animation: textReveal 1.4s var(--ease-in-out) 1.5s forwards; }
+    .hero .reveal { transition-duration: 1.2s; }
+    .hero .reveal.delay-2 { transition-delay: 1.75s; }
+    .hero .reveal.delay-3 { transition-delay: 1.9s; }
+    .hero-logo.reveal { transition-delay: 1.4s; }
+    .scroll-cue {
+      position: absolute; bottom: 36px; left: 50%; transform: translateX(-50%); z-index: 3;
+      width: 24px; height: 38px; border: 1.5px solid rgba(255,255,255,0.25); border-radius: 14px;
+      opacity: 0; animation: fadeIn 1s var(--ease-out) 2.4s forwards;
+    }
+    .scroll-cue::after {
+      content: ''; position: absolute; top: 7px; left: 50%; width: 3px; height: 7px; margin-left: -1.5px;
+      background: var(--accent); border-radius: 2px; animation: scrollCue 1.8s var(--ease-in-out) infinite;
+    }
+    @keyframes scrollCue { 0% { opacity: 0; transform: translateY(0); } 30% { opacity: 1; } 100% { opacity: 0; transform: translateY(14px); } }
+    @keyframes fadeIn { to { opacity: 1; } }
+
+    /* Reveals: softer, shorter travel */
+    .reveal { transform: translateY(40px); filter: blur(6px); }
+    .reveal.active { transform: none; }
+
+    /* Buttons */
+    .btn { border-radius: 12px; transition: transform 0.5s var(--ease-out), background 0.4s var(--ease-out), box-shadow 0.5s var(--ease-out), border-color 0.4s var(--ease-out), color 0.4s; will-change: transform; }
+    .btn-primary { background: linear-gradient(135deg, var(--accent-light), var(--accent) 50%, #c084fc); background-size: 200% 200%; background-position: 0% 50%; }
+    .btn-primary:hover { background-position: 100% 50%; transform: translateY(-3px); box-shadow: 0 14px 34px rgba(244, 114, 182, 0.4); }
+    .btn-secondary:hover { transform: translateY(-3px); }
+    .btn:active { transform: translateY(0) scale(0.97); transition-duration: 0.15s; }
+
+    /* Cards: glossy spotlight that follows the cursor */
+    .feature-card, .testimonial-card, .setup-card, .module-category, .setup-step {
+      transition: opacity 1.1s var(--ease-out), filter 1.1s var(--ease-out), transform 0.9s var(--ease-out), border-color 0.5s var(--ease-out), box-shadow 0.6s var(--ease-out), background 0.5s var(--ease-out);
+      --mx: 50%; --my: 50%;
+    }
+    .tilt-card.tilting { transition-property: opacity, filter, border-color, box-shadow, background; }
+    .feature-card::before, .setup-card::before {
+      background: radial-gradient(420px circle at var(--mx) var(--my), rgba(244, 114, 182, 0.14), transparent 45%);
+    }
+    .feature-card::after { display: none; }
+    .feature-card:hover { box-shadow: 0 24px 50px rgba(0,0,0,0.55), 0 0 0 1px rgba(244, 114, 182, 0.25); }
+    .feature-card:hover .feature-icon { transform: translateZ(40px) scale(1.06); }
+    .feature-card:hover .feature-icon svg { transform: none; }
+    .feature-icon { transition: transform 0.6s var(--ease-out), background 0.4s, border-color 0.4s; }
+    .testimonial-card:hover .quote-icon { transform: translateZ(20px) rotate(6deg); }
+    .setup-card:hover { transform: translateY(-6px); }
+    .setup-card:hover .setup-icon { transform: scale(1.06) rotate(3deg); }
+    .setup-icon { transition: transform 0.6s var(--ease-out); }
+    .stat-item:hover { transform: translateY(-4px); }
+    .stat-item { transition: transform 0.6s var(--ease-out); }
+    .module-item { transition: background 0.4s var(--ease-out), border-color 0.4s var(--ease-out), transform 0.5s var(--ease-out), box-shadow 0.4s; }
+    .module-item:hover { transform: translateX(4px); }
+    .module-desc { transition: max-height 0.6s var(--ease-out), opacity 0.4s var(--ease-out), padding 0.6s var(--ease-out); }
+    .changelog-item { transition: transform 0.6s var(--ease-out); }
+    .changelog-item:hover { transform: translateX(8px); }
+    .faq-item { transition: border-color 0.4s var(--ease-out), background 0.4s, box-shadow 0.4s, transform 0.5s var(--ease-out); }
+    .faq-answer { transition: max-height 0.6s var(--ease-out), padding 0.6s var(--ease-out), opacity 0.4s; opacity: 0; }
+    .faq-item.active .faq-answer { opacity: 1; }
+    .faq-icon { transition: transform 0.5s var(--ease-out); }
+    .ui-preview { transition: transform 0.8s var(--ease-out), box-shadow 0.8s var(--ease-out); }
+    .ui-preview:hover { transform: scale(1.015); }
+    .ui-preview img { transition: opacity 0.5s var(--ease-out), transform 0.8s var(--ease-out); }
+    .ui-preview img.swapping { opacity: 0; transform: scale(1.02); }
+    .toggle-bg { transition: transform 0.6s var(--ease-out); }
+    .footer-col a { transition: color 0.3s, transform 0.5s var(--ease-out); }
+    .footer-col a:hover { transform: translateX(4px); }
+    .footer-watermark { will-change: transform; }
+
+    /* Section headings get a subtle line-up reveal */
+    .heading-section { text-wrap: balance; }
+
+    /* Soft cursor glow (replaces the heavy trail) */
+    #cursor-glow {
+      position: fixed; top: 0; left: 0; width: 500px; height: 500px; margin: -250px 0 0 -250px; border-radius: 50%;
+      background: radial-gradient(circle, rgba(244, 114, 182, 0.08), transparent 60%);
+      pointer-events: none; z-index: 3; opacity: 0; transition: opacity 0.6s var(--ease-out); will-change: transform;
+    }
+    body.has-pointer #cursor-glow { opacity: 1; }
+
+    @media (hover: none) { #cursor-glow, #trail-canvas { display: none; } }
+
+    @media (prefers-reduced-motion: reduce) {
+      *, *::before, *::after { animation-duration: 0.01ms !important; animation-iteration-count: 1 !important; transition-duration: 0.01ms !important; transition-delay: 0s !important; }
+      #intro { display: none; }
+      .clip-reveal { clip-path: none; }
+    }
+  </style>
+</head>
+<body>
+
+  <div id="intro" aria-hidden="true">
+    <div class="css-logo">RAIN</div>
+    <div class="intro-bar"></div>
+    <div id="intro-percentage">0%</div>
+  </div>
+  <div id="cursor-glow"></div>
+
+  <div id="scroll-progress"></div>
+  <div class="bg-grid"></div>
+  <div class="bg-scanlines"></div>
+  <div class="floating-shape shape-1"></div>
+  <div class="floating-shape shape-2"></div>
+  <div class="floating-shape shape-3"></div>
+
+  <canvas id="particle-canvas"></canvas>
+  <canvas id="rain-canvas"></canvas>
+  <canvas id="trail-canvas"></canvas>
+
+  <nav id="navbar">
+    <a href="#home" class="nav-brand nav-link">
+      <div class="css-logo">RAIN</div>
+    </a>
+    <div class="nav-links">
+      <a href="#home" class="nav-link"><span class="svg-icon"><svg viewBox="0 0 24 24"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg></span>Home</a>
+      <a href="#features" class="nav-link"><span class="svg-icon"><svg viewBox="0 0 24 24"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg></span>Features</a>
+      <a href="#modules" class="nav-link"><span class="svg-icon"><svg viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg></span>Modules</a>
+      <a href="#interface" class="nav-link"><span class="svg-icon"><svg viewBox="0 0 24 24"><rect x="2" y="3" width="20" height="14" rx="2" ry="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/></svg></span>Interface</a>
+      <a href="#setup" class="nav-link"><span class="svg-icon"><svg viewBox="0 0 24 24"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/><polyline points="3.27 6.96 12 12.01 20.73 6.96"/><line x1="12" y1="22.08" x2="12" y2="12"/></svg></span>Setup</a>
+      <a href="#faq" class="nav-link"><span class="svg-icon"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg></span>FAQ</a>
+    </div>
+    <div class="nav-actions">
+      <a href="https://www.tiktok.com/@rainclientmc" target="_blank" class="btn btn-secondary">TikTok</a>
+      <a href="https://discord.gg/gy9cV5q3xu" target="_blank" class="btn btn-secondary">Discord</a>
+      <a href="download.html" class="btn btn-primary">Download</a>
+    </div>
+  </nav>
+
+  <header class="hero" id="home">
+    <div class="hero-bg-glow"></div>
+    
+    <div class="floating-ui f1">Hitbox Expander</div>
+    <div class="floating-ui f2">Reach Display</div>
+    <div class="floating-ui f3">Velocity</div>
+    <div class="floating-ui f4">Sprint Reset</div>
+
+    <div class="hero-content">
+      <div class="hero-logo reveal">
+        <div class="hero-orbit"></div>
+        <div class="css-logo">RAIN CLIENT</div>
+      </div>
+      <h1 class="heading-huge clip-reveal">DOMINATE THE<br><span class="text-gradient">META.</span></h1>
+      <p class="reveal delay-2">Rain Client provides the ultimate toolkit for modern Minecraft PvP. Clean visuals, raw performance, and zero paywalls.</p>
+      <div class="hero-actions reveal delay-3">
+        <a href="download.html" class="btn btn-primary">Download Now &rarr;</a>
+        <a href="https://discord.gg/gy9cV5q3xu" target="_blank" class="btn btn-secondary">Join Discord</a>
+      </div>
+    </div>
+    <a href="#features" class="scroll-cue nav-link" aria-label="Scroll down"></a>
+  </header>
+
+  <div class="section-marquee">
+    <div class="marquee-track">
+      <span>Trusted by 100+ Players <span class="svg-icon"><svg viewBox="0 0 24 24"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg></span></span>
+      <span>Lightning Fast Performance <span class="svg-icon"><svg viewBox="0 0 24 24"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg></span></span>
+      <span>Undetectable Bypasses <span class="svg-icon"><svg viewBox="0 0 24 24"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg></span></span>
+      <span>Join the Community <span class="svg-icon"><svg viewBox="0 0 24 24"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg></span></span>
+      <span>Trusted by 100+ Players <span class="svg-icon"><svg viewBox="0 0 24 24"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg></span></span>
+      <span>Lightning Fast Performance <span class="svg-icon"><svg viewBox="0 0 24 24"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg></span></span>
+      <span>Undetectable Bypasses <span class="svg-icon"><svg viewBox="0 0 24 24"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg></span></span>
+      <span>Join the Community <span class="svg-icon"><svg viewBox="0 0 24 24"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg></span></span>
+    </div>
+  </div>
+
+  <section class="section-stats">
+    <div class="stats-container reveal">
+      <div class="stat-item">
+        <div class="stat-icon"><svg viewBox="0 0 24 24" stroke="currentColor" fill="none" stroke-width="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg></div>
+        <div class="stat-number" data-target="100">0</div>
+        <div class="stat-label">Active Users</div>
+      </div>
+      <div class="stat-item">
+        <div class="stat-icon"><svg viewBox="0 0 24 24" stroke="currentColor" fill="none" stroke-width="2"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg></div>
+        <div class="stat-number" data-target="99">0</div>
+        <div class="stat-label">% Uptime</div>
+      </div>
+      <div class="stat-item">
+        <div class="stat-icon"><svg viewBox="0 0 24 24" stroke="currentColor" fill="none" stroke-width="2"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg></div>
+        <div class="stat-number" data-target="50">0</div>
+        <div class="stat-label">+ Modules</div>
+      </div>
+      <div class="stat-item">
+        <div class="stat-icon"><svg viewBox="0 0 24 24" stroke="currentColor" fill="none" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg></div>
+        <div class="stat-number" data-target="10000">0</div>
+        <div class="stat-label">Downloads</div>
+      </div>
+    </div>
+  </section>
+
+  <section class="section-features" id="features">
+    <div class="bg-orb orb-1"></div>
+    <div style="text-align: center; max-width: 800px; margin: 0 auto;" class="reveal">
+      <div class="section-tag">Why Rain Client</div>
+      <h2 class="heading-section">BUILT FOR<br>PERFORMANCE.</h2>
+      <p style="color: var(--text-muted); font-size: 18px;">Discover what makes Rain Client the top choice for competitive players. We focus on what matters.</p>
+    </div>
+    
+    <div class="features-grid">
+      <div class="feature-card reveal tilt-card">
+        <div class="feature-icon"><svg viewBox="0 0 24 24" stroke="currentColor" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg></div>
+        <h3>Optimized Core</h3>
+        <p>Built from the ground up to ensure zero FPS drops, even in the most chaotic 100-player fights.</p>
+      </div>
+      <div class="feature-card reveal delay-1 tilt-card">
+        <div class="feature-icon"><svg viewBox="0 0 24 24" stroke="currentColor" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg></div>
+        <h3>Full Customization</h3>
+        <p>Choose between a unified control panel or a modular dropdown system. Tailor the UI to your playstyle.</p>
+      </div>
+      <div class="feature-card reveal delay-2 tilt-card">
+        <div class="feature-icon"><svg viewBox="0 0 24 24" stroke="currentColor" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg></div>
+        <h3>Profile Management</h3>
+        <p>Never lose your settings again. Save, load, and share your entire configuration with a single click.</p>
+      </div>
+      <div class="feature-card reveal tilt-card">
+        <div class="feature-icon"><svg viewBox="0 0 24 24" stroke="currentColor" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg></div>
+        <h3>Undetectable</h3>
+        <p>Our advanced bypass systems ensure your account stays safe while you dominate the competition.</p>
+      </div>
+      <div class="feature-card reveal delay-1 tilt-card">
+        <div class="feature-icon"><svg viewBox="0 0 24 24" stroke="currentColor" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 18v-6a9 9 0 0 1 18 0v6"/><path d="M21 19a2 2 0 0 1-2 2h-1a2 2 0 0 1-2-2v-3a2 2 0 0 1 2-2h3zM3 19a2 2 0 0 0 2 2h1a2 2 0 0 0 2-2v-3a2 2 0 0 0-2-2H3z"/></svg></div>
+        <h3>Custom Sounds</h3>
+        <p>Replace default Minecraft sounds with custom audio cues for hits, kills, and module toggles.</p>
+      </div>
+      <div class="feature-card reveal delay-2 tilt-card">
+        <div class="feature-icon"><svg viewBox="0 0 24 24" stroke="currentColor" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="6"/><circle cx="12" cy="12" r="2"/></svg></div>
+        <h3>Competitive Edge</h3>
+        <p>From hitbox expanders to reach displays, we provide the tools you need to win every fight.</p>
+      </div>
+      <div class="feature-card reveal tilt-card">
+        <div class="feature-icon"><svg viewBox="0 0 24 24" stroke="currentColor" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="3" width="20" height="14" rx="2" ry="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/></svg></div>
+        <h3>Anti-Render</h3>
+        <p>Block unwanted entities, particles, and text from rendering to maximize your FPS and clarity.</p>
+      </div>
+      <div class="feature-card reveal delay-1 tilt-card">
+        <div class="feature-icon"><svg viewBox="0 0 24 24" stroke="currentColor" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></svg></div>
+        <h3>Custom Fonts</h3>
+        <p>Change the game's default font to any custom font you prefer for a cleaner, more modern look.</p>
+      </div>
+      <div class="feature-card reveal delay-2 tilt-card">
+        <div class="feature-icon"><svg viewBox="0 0 24 24" stroke="currentColor" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="7" width="20" height="14" rx="2" ry="2"/><path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16"/></svg></div>
+        <h3>Macro Support</h3>
+        <p>Bind complex sequences of actions to a single key press to execute fast, flawless combos.</p>
+      </div>
+    </div>
+  </section>
+
+  <section class="section-modules" id="modules">
+    <div class="bg-orb orb-2"></div>
+    <div style="text-align: center; max-width: 800px; margin: 0 auto;" class="reveal">
+      <div class="section-tag">The Toolkit</div>
+      <h2 class="heading-section">EXPLORE THE<br>MODULES.</h2>
+      <p style="color: var(--text-muted); font-size: 18px;">Click on any module to learn what it does. A comprehensive suite of tools designed to give you the upper hand.</p>
+    </div>
+
+    <div class="modules-container">
+      <!-- Combat -->
+      <div class="module-category reveal">
+        <div class="category-header">
+          <div class="category-icon"><svg viewBox="0 0 24 24" stroke="currentColor" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14.5 17.5L3 6V3h3l11.5 11.5"/><path d="M13 19l6-6"/><path d="M16 16l4 4"/><path d="M19 21l2-2"/></svg></div>
+          <h3 class="category-title">Combat</h3>
+        </div>
+        <div class="module-list">
+          <div class="module-item" onclick="toggleModule(this)">
+            <div class="module-header"><span class="module-name">Hitbox Expander</span><span class="module-tag combat">Combat</span></div>
+            <div class="module-desc">Expands the hitboxes of entities, making it significantly easier to land hits in fast-paced PvP.</div>
+          </div>
+          <div class="module-item" onclick="toggleModule(this)">
+            <div class="module-header"><span class="module-name">Reach Display</span><span class="module-tag combat">Combat</span></div>
+            <div class="module-desc">Shows the exact distance between you and your opponent, allowing you to maximize your reach advantage.</div>
+          </div>
+          <div class="module-item" onclick="toggleModule(this)">
+            <div class="module-header"><span class="module-name">Auto Totem</span><span class="module-tag combat">Combat</span></div>
+            <div class="module-desc">Automatically equips a Totem of Undying to your offhand the moment it pops, keeping you alive.</div>
+          </div>
+          <div class="module-item" onclick="toggleModule(this)">
+            <div class="module-header"><span class="module-name">Velocity Modifier</span><span class="module-tag combat">Combat</span></div>
+            <div class="module-desc">Reduces or removes knockback taken from hits, making you much harder to combo off the edge.</div>
+          </div>
+          <div class="module-item" onclick="toggleModule(this)">
+            <div class="module-header"><span class="module-name">Critical Indicators</span><span class="module-tag combat">Combat</span></div>
+            <div class="module-desc">Visually indicates when your next hit will be a critical strike, allowing for optimal timing.</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Render -->
+      <div class="module-category reveal delay-1">
+        <div class="category-header">
+          <div class="category-icon"><svg viewBox="0 0 24 24" stroke="currentColor" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg></div>
+          <h3 class="category-title">Render</h3>
+        </div>
+        <div class="module-list">
+          <div class="module-item" onclick="toggleModule(this)">
+            <div class="module-header"><span class="module-name">FullBright</span><span class="module-tag render">Render</span></div>
+            <div class="module-desc">Removes all darkness from the game, making caves and night time perfectly visible without torches.</div>
+          </div>
+          <div class="module-item" onclick="toggleModule(this)">
+            <div class="module-header"><span class="module-name">Active ArrayList</span><span class="module-tag render">Render</span></div>
+            <div class="module-desc">Displays a sleek HUD on your screen showing all currently enabled modules and their keybinds.</div>
+          </div>
+          <div class="module-item" onclick="toggleModule(this)">
+            <div class="module-header"><span class="module-name">Armor HUD</span><span class="module-tag render">Render</span></div>
+            <div class="module-desc">Shows the durability and enchantments of your armor and held items directly on your screen.</div>
+          </div>
+          <div class="module-item" onclick="toggleModule(this)">
+            <div class="module-header"><span class="module-name">Custom Crosshair</span><span class="module-tag render">Render</span></div>
+            <div class="module-desc">Replaces the default crosshair with a custom shape, color, and dynamic hit-marker.</div>
+          </div>
+          <div class="module-item" onclick="toggleModule(this)">
+            <div class="module-header"><span class="module-name">Item ESP</span><span class="module-tag render">Render</span></div>
+            <div class="module-desc">Highlights dropped items through walls, ensuring you never miss valuable loot in a fight.</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Utility -->
+      <div class="module-category reveal delay-2">
+        <div class="category-header">
+          <div class="category-icon"><svg viewBox="0 0 24 24" stroke="currentColor" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"/></svg></div>
+          <h3 class="category-title">Utility</h3>
+        </div>
+        <div class="module-list">
+          <div class="module-item" onclick="toggleModule(this)">
+            <div class="module-header"><span class="module-name">Sprint Reset</span><span class="module-tag utility">Utility</span></div>
+            <div class="module-desc">Automatically resets your sprint between hits to ensure you always land critical hits.</div>
+          </div>
+          <div class="module-item" onclick="toggleModule(this)">
+            <div class="module-header"><span class="module-name">Freecam</span><span class="module-tag utility">Utility</span></div>
+            <div class="module-desc">Detaches your camera from your character, allowing you to scout your surroundings without moving.</div>
+          </div>
+          <div class="module-item" onclick="toggleModule(this)">
+            <div class="module-header"><span class="module-name">Fast Place</span><span class="module-tag utility">Utility</span></div>
+            <div class="module-desc">Removes the delay between placing blocks, allowing for instant bridging and trapping.</div>
+          </div>
+          <div class="module-item" onclick="toggleModule(this)">
+            <div class="module-header"><span class="module-name">Name Protect</span><span class="module-tag utility">Utility</span></div>
+            <div class="module-desc">Obfuscates your name and skin on servers to prevent stream sniping or targeting.</div>
+          </div>
+          <div class="module-item" onclick="toggleModule(this)">
+            <div class="module-header"><span class="module-name">Auto Reconnect</span><span class="module-tag utility">Utility</span></div>
+            <div class="module-desc">Automatically attempts to reconnect you to the server if you are kicked or disconnected.</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Movement -->
+      <div class="module-category reveal">
+        <div class="category-header">
+          <div class="category-icon"><svg viewBox="0 0 24 24" stroke="currentColor" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14"/><path d="M12 5v14"/></svg></div>
+          <h3 class="category-title">Movement</h3>
+        </div>
+        <div class="module-list">
+          <div class="module-item" onclick="toggleModule(this)">
+            <div class="module-header"><span class="module-name">Step</span><span class="module-tag movement">Movement</span></div>
+            <div class="module-desc">Allows you to instantly step up 1 or 2 block heights without jumping.</div>
+          </div>
+          <div class="module-item" onclick="toggleModule(this)">
+            <div class="module-header"><span class="module-name">NoSlow</span><span class="module-tag movement">Movement</span></div>
+            <div class="module-desc">Removes the slowing effect caused by eating, blocking with a sword, or drawing a bow.</div>
+          </div>
+          <div class="module-item" onclick="toggleModule(this)">
+            <div class="module-header"><span class="module-name">LongJump</span><span class="module-tag movement">Movement</span></div>
+            <div class="module-desc">Significantly increases the distance you can jump, useful for escaping or gap-closing.</div>
+          </div>
+          <div class="module-item" onclick="toggleModule(this)">
+            <div class="module-header"><span class="module-name">Spider</span><span class="module-tag movement">Movement</span></div>
+            <div class="module-desc">Allows you to climb up walls by holding against them, similar to a spider.</div>
+          </div>
+          <div class="module-item" onclick="toggleModule(this)">
+            <div class="module-header"><span class="module-name">Timer</span><span class="module-tag movement">Movement</span></div>
+            <div class="module-desc">Speeds up your game's tick rate, making everything from movement to attacking faster.</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Client -->
+      <div class="module-category reveal delay-1">
+        <div class="category-header">
+          <div class="category-icon"><svg viewBox="0 0 24 24" stroke="currentColor" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="2" width="20" height="20" rx="2" ry="2"/><line x1="12" y1="18" x2="12" y2="18.01"/><path d="M12 14a2 2 0 0 1-2-2c0-1.1.9-2 2-2h0a2 2 0 0 1 2 2v.5"/></svg></div>
+          <h3 class="category-title">Client</h3>
+        </div>
+        <div class="module-list">
+          <div class="module-item" onclick="toggleModule(this)">
+            <div class="module-header"><span class="module-name">Watermark</span><span class="module-tag client">Client</span></div>
+            <div class="module-desc">Displays the Rain Client logo and your current FPS on your screen.</div>
+          </div>
+          <div class="module-item" onclick="toggleModule(this)">
+            <div class="module-header"><span class="module-name">Discord RPC</span><span class="module-tag client">Client</span></div>
+            <div class="module-desc">Shows that you are using Rain Client on your Discord profile with rich presence.</div>
+          </div>
+          <div class="module-item" onclick="toggleModule(this)">
+            <div class="module-header"><span class="module-name">Auto Update</span><span class="module-tag client">Client</span></div>
+            <div class="module-desc">Automatically checks for and downloads the latest version of Rain Client.</div>
+          </div>
+          <div class="module-item" onclick="toggleModule(this)">
+            <div class="module-header"><span class="module-name">Config System</span><span class="module-tag client">Client</span></div>
+            <div class="module-desc">Save multiple different configurations and load them with a single click.</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="section-ui" id="interface">
+    <div class="ui-preview reveal">
+      <img id="ui-image" src="https://cdn.discordapp.com/attachments/1569188934980870178/1573832283809648742/image.png?ex=6b037108&is=6b021f88&hm=100f21b411693797af97ff31c12689a3b665e715dfaae50da5967e5bd41b2707&" alt="Rain Client Unified Panel">
+    </div>
+    <div class="ui-info reveal delay-1">
+      <div class="section-tag">Interface Preview</div>
+      <h2 class="heading-section">CHOOSE YOUR<br>LAYOUT.</h2>
+      <p id="ui-desc">A centralized hub for all your settings. Everything is neatly organized in a single, easy-to-navigate menu.</p>
+      <div class="toggle-container">
+        <div class="toggle-bg" id="toggle-bg"></div>
+        <button class="toggle-btn active" data-target="panel" onclick="switchUI('panel')">Unified Panel</button>
+        <button class="toggle-btn" data-target="dropdown" onclick="switchUI('dropdown')">Classic Dropdown</button>
+      </div>
+    </div>
+  </section>
+
+  <section class="section-setup" id="setup">
+    <div style="text-align: center; max-width: 800px; margin: 0 auto;" class="reveal">
+      <div class="section-tag">Requirements</div>
+      <h2 class="heading-section">GET UP AND<br>RUNNING.</h2>
+      <p style="color: var(--text-muted); font-size: 18px;">Everything you need to install Rain Client and start dominating.</p>
+    </div>
+
+    <div class="setup-grid">
+      <a href="https://modrinth.com/mod/fabric-api?loader=fabric&version=1.21.11" target="_blank" class="setup-card reveal">
+        <div class="setup-icon">
+          <img src="https://cdn.modrinth.com/data/P7dR8mSH/icon.png" alt="Fabric API Logo">
+        </div>
+        <div class="setup-text">
+          <h3>Fabric API</h3>
+          <p>The essential lightweight modding API for Minecraft. Required for Rain Client to function properly.</p>
+          <span class="btn btn-secondary">Download on Modrinth &rarr;</span>
+        </div>
+      </a>
+
+      <div class="setup-card reveal delay-1">
+        <div class="setup-icon rain-icon">
+          <img src="https://cdn.phototourl.com/anon/2026-11-16-52b12baa-1e1f-4102-9e8a-9934064896c2.png" alt="Rain Client Logo">
+        </div>
+        <div class="setup-text">
+          <h3>Rain Client</h3>
+          <p>The ultimate utility client for Minecraft <strong>1.21.11</strong>. Download the latest .jar file and drop it into your mods folder.</p>
+          <a href="download.html" class="btn btn-primary">Download Client &rarr;</a>
+        </div>
+      </div>
+    </div>
+
+    <div class="setup-steps reveal delay-2">
+      <div class="setup-step">
+        <div class="step-num">1</div>
+        <div class="step-content">
+          <h4>Install Fabric Loader</h4>
+          <p>Download and run the Fabric Installer for Minecraft <strong>1.21.11</strong>. Select "Install" to create a new Fabric profile in your Minecraft launcher.</p>
+        </div>
+      </div>
+      <div class="setup-step">
+        <div class="step-num">2</div>
+        <div class="step-content">
+          <h4>Download Fabric API</h4>
+          <p>Download the Fabric API from Modrinth using the button above. Make sure to select the 1.21.11 version.</p>
+        </div>
+      </div>
+      <div class="setup-step">
+        <div class="step-num">3</div>
+        <div class="step-content">
+          <h4>Place in Mods Folder</h4>
+          <p>Press <code>Win + R</code>, type <code>%appdata%\.minecraft</code>, and hit Enter. Open the <code>mods</code> folder (create it if it doesn't exist) and drop both the Fabric API and Rain Client `.jar` files inside.</p>
+        </div>
+      </div>
+      <div class="setup-step">
+        <div class="step-num">4</div>
+        <div class="step-content">
+          <h4>Launch and Configure</h4>
+          <p>Open your Minecraft Launcher, select the Fabric profile, and launch the game. Once in-game, press <code>Right Shift</code> to open the Rain Client ClickGUI.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="section-changelog" id="changelog">
+    <div style="text-align: center; max-width: 800px; margin: 0 auto;" class="reveal">
+      <div class="section-tag">Updates</div>
+      <h2 class="heading-section">CHANGELOG.</h2>
+    </div>
+
+    <div class="changelog-container reveal delay-1">
+      <div class="changelog-item">
+        <div class="changelog-dot"></div>
+        <span class="changelog-date">Current Version — v1.0.0</span>
+        <h4 class="changelog-title">Initial Release</h4>
+        <p class="changelog-desc">The official launch of Rain Client. Includes the full suite of combat, render, and utility modules, the unified panel and dropdown GUIs, and full support for Fabric 1.21.11.</p>
+        <div class="changelog-tags">
+          <span class="module-tag utility">Release</span>
+        </div>
+      </div>
+
+      <div class="changelog-item">
+        <div class="changelog-dot" style="border-color: #6b7280; box-shadow: none;"></div>
+        <span class="changelog-date" style="color: var(--text-muted);">Beta — v0.9.0</span>
+        <h4 class="changelog-title">Public Beta Test</h4>
+        <p class="changelog-desc">The final beta build before official release. Focused on fixing bypass stability, patching memory leaks, and polishing the ClickGUI animations.</p>
+        <div class="changelog-tags">
+          <span class="module-tag render">Beta</span>
+          <span class="module-tag combat">Bug Fix</span>
+        </div>
+      </div>
+      
+      <div class="changelog-item">
+        <div class="changelog-dot" style="border-color: #6b7280; box-shadow: none;"></div>
+        <span class="changelog-date" style="color: var(--text-muted);">Alpha — v0.5.0</span>
+        <h4 class="changelog-title">Internal Alpha</h4>
+        <p class="changelog-desc">Initial closed testing phase for the core development team. Basic combat modules and foundational UI implemented.</p>
+        <div class="changelog-tags">
+          <span class="module-tag render">Alpha</span>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="section-testimonials" id="testimonials">
+    <div style="text-align: center; max-width: 800px; margin: 0 auto;" class="reveal">
+      <div class="section-tag">Community</div>
+      <h2 class="heading-section">TRUSTED BY THE BEST.</h2>
+    </div>
+    
+    <div class="testimonials-grid">
+      <div class="testimonial-card reveal tilt-card">
+        <div class="quote-icon"><svg viewBox="0 0 24 24"><path d="M6 17h3l2-4V7H5v6h3zm8 0h3l2-4V7h-6v6h3z"/></svg></div>
+        <p class="testimonial-text">Rain Client completely changed how I play. The FPS boost alone is worth it, but the customizable ClickGUI is what keeps me using it every day.</p>
+        <div class="testimonial-user">
+          <div class="user-avatar">*</div>
+          <div class="user-info"><h4>***</h4><p>Top Player</p></div>
+        </div>
+      </div>
+      
+      <div class="testimonial-card reveal delay-1 tilt-card">
+        <div class="quote-icon"><svg viewBox="0 0 24 24"><path d="M6 17h3l2-4V7H5v6h3zm8 0h3l2-4V7h-6v6h3z"/></svg></div>
+        <p class="testimonial-text">I've tried every client out there, and Rain is by far the smoothest. The rain animation is sick, and the devs actually listen to community feedback.</p>
+        <div class="testimonial-user">
+          <div class="user-avatar">*</div>
+          <div class="user-info"><h4>***</h4><p>Content Creator</p></div>
+        </div>
+      </div>
+
+      <div class="testimonial-card reveal delay-2 tilt-card">
+        <div class="quote-icon"><svg viewBox="0 0 24 24"><path d="M6 17h3l2-4V7H5v6h3zm8 0h3l2-4V7h-6v6h3z"/></svg></div>
+        <p class="testimonial-text">The module selection is insane. I love that I can toggle between the panel and dropdown layout depending on what I'm doing in-game.</p>
+        <div class="testimonial-user">
+          <div class="user-avatar">*</div>
+          <div class="user-info"><h4>***</h4><p>Anarchy Veteran</p></div>
+        </div>
+      </div>
+      
+      <div class="testimonial-card reveal tilt-card">
+        <div class="quote-icon"><svg viewBox="0 0 24 24"><path d="M6 17h3l2-4V7H5v6h3zm8 0h3l2-4V7h-6v6h3z"/></svg></div>
+        <p class="testimonial-text">The bypasses are actually insane. I've been using it on practice servers for weeks with zero issues. Highly recommend.</p>
+        <div class="testimonial-user">
+          <div class="user-avatar">*</div>
+          <div class="user-info"><h4>***</h4><p>Bedwars Main</p></div>
+        </div>
+      </div>
+
+      <div class="testimonial-card reveal delay-1 tilt-card">
+        <div class="quote-icon"><svg viewBox="0 0 24 24"><path d="M6 17h3l2-4V7H5v6h3zm8 0h3l2-4V7h-6v6h3z"/></svg></div>
+        <p class="testimonial-text">Finally a client that doesn't feel clunky. The UI is incredibly responsive and the custom sounds make hits feel so satisfying.</p>
+        <div class="testimonial-user">
+          <div class="user-avatar">*</div>
+          <div class="user-info"><h4>***</h4><p>PvP Legend</p></div>
+        </div>
+      </div>
+
+      <div class="testimonial-card reveal delay-2 tilt-card">
+        <div class="quote-icon"><svg viewBox="0 0 24 24"><path d="M6 17h3l2-4V7H5v6h3zm8 0h3l2-4V7h-6v6h3z"/></svg></div>
+        <p class="testimonial-text">Setup was a breeze and the performance is unmatched. My players love it, and it hasn't caused any server-side issues.</p>
+        <div class="testimonial-user">
+          <div class="user-avatar">*</div>
+          <div class="user-info"><h4>***</h4><p>Server Owner</p></div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="section-faq" id="faq">
+    <div style="text-align: center; max-width: 800px; margin: 0 auto;" class="reveal">
+      <div class="section-tag">Questions</div>
+      <h2 class="heading-section">FREQUENTLY ASKED.</h2>
+    </div>
+    
+    <div class="faq-container reveal delay-1">
+      <div class="faq-item">
+        <div class="faq-question" onclick="toggleFaq(this)">Is Rain Client free to use?<span class="faq-icon">+</span></div>
+        <div class="faq-answer">Yes! Rain Client is completely free. There are no hidden fees, premium tiers, or paywalls. We believe everyone should have access to a great client.</div>
+      </div>
+      
+      <div class="faq-item">
+        <div class="faq-question" onclick="toggleFaq(this)">What Minecraft versions are supported?<span class="faq-icon">+</span></div>
+        <div class="faq-answer">Currently, Rain Client fully supports Minecraft 1.21.11 with Fabric.</div>
+      </div>
+
+      <div class="faq-item">
+        <div class="faq-question" onclick="toggleFaq(this)">Will I get banned using this?<span class="faq-icon">+</span></div>
+        <div class="faq-answer">Rain Client uses advanced bypasses, but we always recommend using a secondary account on public servers. We are not responsible for bans, use at your own risk.</div>
+      </div>
+      
+      <div class="faq-item">
+        <div class="faq-question" onclick="toggleFaq(this)">How do I install the client?<span class="faq-icon">+</span></div>
+        <div class="faq-answer">Simply download the Fabric API from Modrinth, then download the latest Rain Client .jar file, drop it into your mods folder alongside Fabric API, and launch Minecraft with Fabric. Press Right Shift in-game to open the menu.</div>
+      </div>
+
+      <div class="faq-item">
+        <div class="faq-question" onclick="toggleFaq(this)">Does this work with Lunar Client?<span class="faq-icon">+</span></div>
+        <div class="faq-answer">No, Rain Client is a standalone Fabric mod. It cannot be used in conjunction with other standalone clients like Lunar or Badlion, as they use different modloaders.</div>
+      </div>
+
+      <div class="faq-item">
+        <div class="faq-question" onclick="toggleFaq(this)">Is Rain Client open source?<span class="faq-icon">+</span></div>
+        <div class="faq-answer">The core client is closed-source to protect our bypass methods. However, we do release API documentation for developers who wish to create addons.</div>
+      </div>
+      
+      <div class="faq-item">
+        <div class="faq-question" onclick="toggleFaq(this)">Can I share Rain Client with my friends?<span class="faq-icon">+</span></div>
+        <div class="faq-answer">Absolutely! Rain Client is free, and you are welcome to share the download link with anyone. Just make sure they download it from the official source.</div>
+      </div>
+
+      <div class="faq-item">
+        <div class="faq-question" onclick="toggleFaq(this)">How often are updates released?<span class="faq-icon">+</span></div>
+        <div class="faq-answer">We aim for weekly small patches to fix bugs and improve bypasses, with major feature updates (new modules, UI changes) happening every 1-2 months.</div>
+      </div>
+    </div>
+  </section>
+
+  <footer>
+    <div class="footer-container">
+      <div class="footer-grid">
+        <div class="footer-brand">
+          <div class="css-logo">RAIN</div>
+          <p>Rain Client for Minecraft.<br>1.21.11 - Fabric.</p>
+          <div class="version-pill">v1.0.0</div>
+        </div>
+        <div class="footer-col">
+          <h4>PRODUCT</h4>
+          <ul>
+            <li><a href="#features" class="nav-link">Features</a></li>
+            <li><a href="#modules" class="nav-link">Modules</a></li>
+            <li><a href="#interface" class="nav-link">Interface</a></li>
+          </ul>
+        </div>
+        <div class="footer-col">
+          <h4>SETUP</h4>
+          <ul>
+            <li><a href="https://modrinth.com/mod/fabric-api?loader=fabric&version=1.21.11" target="_blank">Fabric API</a></li>
+            <li><a href="#setup" class="nav-link">Installation</a></li>
+            <li><a href="#changelog" class="nav-link">Changelog</a></li>
+            <li><a href="#faq" class="nav-link">FAQ</a></li>
+          </ul>
+        </div>
+        <div class="footer-col">
+          <h4>COMMUNITY</h4>
+          <ul>
+            <li><a href="https://discord.gg/gy9cV5q3xu" target="_blank">Discord</a></li>
+            <li><a href="https://www.tiktok.com/@rainclientmc" target="_blank">Official TikTok</a></li>
+          </ul>
+        </div>
+        <div class="footer-col">
+          <h4>LEGAL</h4>
+          <ul>
+            <li><a href="#">Terms of Service</a></li>
+            <li><a href="privacy.html">Privacy Policy</a></li>
+            <li><a href="eula.html">EULA</a></li>
+          </ul>
+        </div>
+      </div>
+    </div>
+
+    <div class="footer-end">
+      <div class="footer-watermark">RAIN CLIENT</div>
+      <div class="footer-container">
+        <div class="footer-bottom">
+          <div>© 2026 Rain Client. All rights reserved. &nbsp;&nbsp; made by rain team</div>
+          <div>Not affiliated with, endorsed by or associated with Mojang AB, Microsoft or any server.</div>
+        </div>
+      </div>
+    </div>
+  </footer>
+
+  <script src="https://unpkg.com/lenis@1.1.13/dist/lenis.min.js"></script>
+  <script>
+    const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+    // 0. LOADING SCREEN PERCENTAGE
+    const introPercentage = document.getElementById('intro-percentage');
+    let currentPercent = 0;
+    const loadInterval = setInterval(() => {
+      currentPercent += Math.floor(Math.random() * 5) + 2;
+      if (currentPercent >= 100) {
+        currentPercent = 100;
+        clearInterval(loadInterval);
+      }
+      introPercentage.innerText = `${currentPercent}%`;
+    }, 30);
+
+    // 0b. SMOOTH SCROLL (Lenis, with native fallback)
+    let lenis = null;
+    if (window.Lenis && !reduceMotion) {
+      lenis = new Lenis({ duration: 1.15, easing: t => Math.min(1, 1.001 - Math.pow(2, -10 * t)), smoothWheel: true });
+      const raf = (time) => { lenis.raf(time); requestAnimationFrame(raf); };
+      requestAnimationFrame(raf);
+    }
+    function scrollToTarget(target) {
+      if (!target) return;
+      if (lenis) lenis.scrollTo(target, { offset: -70, duration: 1.4 });
+      else window.scrollTo({ top: target.getBoundingClientRect().top + window.scrollY - 70, behavior: reduceMotion ? 'auto' : 'smooth' });
+    }
+
+    // 1. SCROLL PROGRESS, NAV STATE, PARALLAX
+    const progressBar = document.getElementById('scroll-progress');
+    const navbar = document.getElementById('navbar');
+    const heroContent = document.querySelector('.hero-content');
+    const watermark = document.querySelector('.footer-watermark');
+    const sections = [...document.querySelectorAll('header[id], section[id]')];
+    const navLinkMap = {};
+    document.querySelectorAll('.nav-links a').forEach(a => navLinkMap[a.getAttribute('href').slice(1)] = a);
+    let ticking = false;
+    function onScroll() {
+      const y = window.scrollY;
+      const max = document.documentElement.scrollHeight - window.innerHeight;
+      progressBar.style.transform = `scaleX(${max > 0 ? y / max : 0})`;
+      navbar.classList.toggle('scrolled', y > 40);
+      if (!reduceMotion && y < window.innerHeight) {
+        heroContent.style.transform = `translate3d(0, ${y * 0.25}px, 0)`;
+        heroContent.style.opacity = Math.max(0, 1 - y / (window.innerHeight * 0.8));
+      }
+      if (watermark && !reduceMotion) {
+        const r = watermark.parentElement.getBoundingClientRect();
+        const off = Math.max(0, r.top - window.innerHeight * 0.3) * 0.15;
+        watermark.style.transform = `translate3d(-50%, ${off}px, 0)`;
+      }
+      let current = sections[0];
+      sections.forEach(sec => { if (sec.getBoundingClientRect().top <= window.innerHeight * 0.4) current = sec; });
+      Object.values(navLinkMap).forEach(a => a.classList.remove('current'));
+      if (current && navLinkMap[current.id]) navLinkMap[current.id].classList.add('current');
+      ticking = false;
+    }
+    window.addEventListener('scroll', () => { if (!ticking) { ticking = true; requestAnimationFrame(onScroll); } }, { passive: true });
+    onScroll();
+
+    // 1b. CURSOR GLOW (eased follow)
+    const glow = document.getElementById('cursor-glow');
+    let gx = window.innerWidth / 2, gy = window.innerHeight / 2, tx = gx, ty = gy;
+    window.addEventListener('mousemove', e => { tx = e.clientX; ty = e.clientY; document.body.classList.add('has-pointer'); }, { passive: true });
+    (function glowLoop() {
+      gx += (tx - gx) * 0.12; gy += (ty - gy) * 0.12;
+      glow.style.transform = `translate3d(${gx}px, ${gy}px, 0)`;
+      requestAnimationFrame(glowLoop);
+    })();
+
+    // 2. FLOATING PARTICLES
+    const particleCanvas = document.getElementById('particle-canvas');
+    const pCtx = particleCanvas.getContext('2d');
+    let pWidth, pHeight, particles = [];
+    
+    function resizeParticles() { pWidth = particleCanvas.width = window.innerWidth; pHeight = particleCanvas.height = window.innerHeight; }
+    window.addEventListener('resize', resizeParticles); resizeParticles();
+
+    class Particle {
+      constructor() {
+        this.x = Math.random() * pWidth; this.y = Math.random() * pHeight;
+        this.size = Math.random() * 2 + 1; this.speedY = Math.random() * 0.5 + 0.2;
+        this.speedX = (Math.random() - 0.5) * 0.5; this.opacity = Math.random() * 0.3 + 0.1;
+      }
+      update() {
+        this.y -= this.speedY; this.x += this.speedX;
+        if (this.y < 0) { this.y = pHeight; this.x = Math.random() * pWidth; }
+      }
+      draw() {
+        pCtx.beginPath(); pCtx.arc(this.x, this.y, this.size, 0, Math.PI * 2);
+        pCtx.fillStyle = `rgba(244, 114, 182, ${this.opacity})`;
+        pCtx.shadowBlur = 10; pCtx.shadowColor = '#f472b6';
+        pCtx.fill(); pCtx.shadowBlur = 0;
+      }
+    }
+    for (let i = 0; i < 50; i++) particles.push(new Particle());
+    function animateParticles() {
+      pCtx.clearRect(0, 0, pWidth, pHeight);
+      particles.forEach(p => { p.update(); p.draw(); });
+      requestAnimationFrame(animateParticles);
+    }
+    animateParticles();
+
+    // 3. RAIN
+    const rainCanvas = document.getElementById('rain-canvas');
+    const rainCtx = rainCanvas.getContext('2d');
+    let width, height, raindrops = [];
+    
+    function resize() { width = rainCanvas.width = window.innerWidth; height = rainCanvas.height = window.innerHeight; }
+    window.addEventListener('resize', resize); resize();
+
+    class Raindrop {
+      constructor() {
+        this.x = Math.random() * width; this.y = Math.random() * height;
+        this.length = Math.random() * 25 + 10; this.speed = Math.random() * 8 + 10;
+        this.opacity = Math.random() * 0.25 + 0.15; this.angle = Math.random() * 0.05 - 0.025;
+      }
+      update() {
+        this.y += this.speed; this.x += this.angle * this.speed;
+        if (this.y > height) { this.y = -30; this.x = Math.random() * width; }
+      }
+      draw() {
+        rainCtx.beginPath(); rainCtx.moveTo(this.x, this.y);
+        rainCtx.lineTo(this.x + (this.angle * this.length), this.y + this.length);
+        rainCtx.strokeStyle = `rgba(244, 114, 182, ${this.opacity})`;
+        rainCtx.lineWidth = 1.5; rainCtx.shadowBlur = 5;
+        rainCtx.shadowColor = 'rgba(244, 114, 182, 0.8)'; rainCtx.stroke(); rainCtx.shadowBlur = 0;
+      }
+    }
+    for (let i = 0; i < 100; i++) raindrops.push(new Raindrop());
+    function animateRain() {
+      rainCtx.clearRect(0, 0, width, height);
+      raindrops.forEach(d => { d.update(); d.draw(); });
+      requestAnimationFrame(animateRain);
+    }
+    animateRain();
+
+    // 4. TRAIL
+    const trailCanvas = document.getElementById('trail-canvas');
+    const trailCtx = trailCanvas.getContext('2d');
+    let trailWidth, trailHeight, trailPoints = [];
+    function resizeTrail() { trailWidth = trailCanvas.width = window.innerWidth; trailHeight = trailCanvas.height = window.innerHeight; }
+    window.addEventListener('resize', resizeTrail); resizeTrail();
+    window.addEventListener('mousemove', (e) => {
+      trailPoints.push({ x: e.clientX, y: e.clientY, alpha: 1 });
+      if (trailPoints.length > 18) trailPoints.shift();
+    });
+    function animateTrail() {
+      trailCtx.clearRect(0, 0, trailWidth, trailHeight);
+      if (trailPoints.length > 1) {
+        for (let i = 0; i < trailPoints.length - 1; i++) {
+          const p1 = trailPoints[i], p2 = trailPoints[i + 1];
+          trailCtx.beginPath(); trailCtx.moveTo(p1.x, p1.y); trailCtx.lineTo(p2.x, p2.y);
+          trailCtx.strokeStyle = `rgba(244, 114, 182, ${p1.alpha * 0.45})`;
+          trailCtx.lineWidth = p1.alpha * 4; trailCtx.lineCap = 'round'; trailCtx.lineJoin = 'round';
+          trailCtx.shadowBlur = 8; trailCtx.shadowColor = 'rgba(244, 114, 182, 0.8)';
+          trailCtx.stroke();
+        }
+        trailPoints.forEach(p => p.alpha -= 0.05);
+        trailPoints = trailPoints.filter(p => p.alpha > 0);
+      }
+      requestAnimationFrame(animateTrail);
+    }
+    animateTrail();
+
+    // 5. 3D TILT (eased) + SPOTLIGHT
+    document.querySelectorAll('.tilt-card').forEach(card => {
+      let cx = 0, cy = 0, rx = 0, ry = 0, s = 1, ts = 1, running = false;
+      const loop = () => {
+        rx += (cx - rx) * 0.12; ry += (cy - ry) * 0.12; s += (ts - s) * 0.12;
+        card.style.transform = `perspective(1000px) rotateX(${rx}deg) rotateY(${ry}deg) scale(${s})`;
+        if (Math.abs(cx - rx) > 0.01 || Math.abs(cy - ry) > 0.01 || Math.abs(ts - s) > 0.001) requestAnimationFrame(loop);
+        else { running = false; if (ts === 1 && cx === 0 && cy === 0) { card.style.transform = ''; card.classList.remove('tilting'); } }
+      };
+      const kick = () => { if (!running) { running = true; requestAnimationFrame(loop); } };
+      card.addEventListener('mousemove', e => {
+        if (reduceMotion) return;
+        const rect = card.getBoundingClientRect();
+        const x = (e.clientX - rect.left) / rect.width - 0.5, y = (e.clientY - rect.top) / rect.height - 0.5;
+        cx = y * -6; cy = x * 6; ts = 1.015; kick();
+      });
+      card.addEventListener('mouseenter', () => { if (card.classList.contains('active')) card.classList.add('tilting'); });
+      card.addEventListener('mouseleave', () => { cx = 0; cy = 0; ts = 1; kick(); });
+    });
+    document.querySelectorAll('.feature-card, .setup-card').forEach(card => {
+      card.addEventListener('mousemove', e => {
+        const rect = card.getBoundingClientRect();
+        card.style.setProperty('--mx', `${e.clientX - rect.left}px`);
+        card.style.setProperty('--my', `${e.clientY - rect.top}px`);
+      });
+    });
+
+    // 5b. MAGNETIC BUTTONS
+    if (!reduceMotion && window.matchMedia('(hover: hover)').matches) {
+      document.querySelectorAll('.btn').forEach(btn => {
+        btn.addEventListener('mousemove', e => {
+          const r = btn.getBoundingClientRect();
+          const x = (e.clientX - r.left - r.width / 2) * 0.18, y = (e.clientY - r.top - r.height / 2) * 0.25;
+          btn.style.transform = `translate(${x}px, ${y - 3}px)`;
+        });
+        btn.addEventListener('mouseleave', () => { btn.style.transform = ''; });
+      });
+    }
+
+    // 6. MODULES
+    function toggleModule(el) { el.classList.toggle('active'); }
+
+    // 7. REVEAL
+    document.querySelectorAll('.features-grid, .modules-container, .setup-grid, .testimonials-grid').forEach(grid => {
+      [...grid.children].forEach((el, i) => { el.style.transitionDelay = `${(i % 3) * 0.12}s`; });
+    });
+    document.addEventListener('transitionend', e => {
+      const el = e.target;
+      if (e.propertyName === 'opacity' && el.classList.contains('active') && el.style.transitionDelay) el.style.transitionDelay = '0s';
+    });
+    const revealElements = document.querySelectorAll('.reveal, .reveal-left, .reveal-right');
+    const revealObserver = new IntersectionObserver((entries, obs) => {
+      entries.forEach(entry => {
+        if (!entry.isIntersecting) return;
+        entry.target.classList.add('active');
+        obs.unobserve(entry.target);
+      });
+    }, { threshold: 0.1, rootMargin: "0px 0px -50px 0px" });
+    revealElements.forEach(el => revealObserver.observe(el));
+
+    // 8. STATS COUNTER
+    const counters = document.querySelectorAll('.stat-number');
+    const startCounter = (counter) => {
+      const target = +counter.getAttribute('data-target');
+      const duration = 1800, start = performance.now();
+      const step = (now) => {
+        const t = Math.min(1, (now - start) / duration);
+        const eased = 1 - Math.pow(1 - t, 4);
+        counter.innerText = Math.round(target * eased);
+        if (t < 1) requestAnimationFrame(step);
+      };
+      requestAnimationFrame(step);
+    };
+    const statsObserver = new IntersectionObserver((entries) => {
+      if (entries[0].isIntersecting) {
+        counters.forEach(c => startCounter(c));
+        statsObserver.disconnect();
+      }
+    }, { threshold: 0.5 });
+    statsObserver.observe(document.querySelector('.section-stats'));
+
+    // 9. UI TOGGLE
+    function switchUI(type) {
+      const toggleBg = document.getElementById('toggle-bg');
+      const btns = document.querySelectorAll('.toggle-btn');
+      const img = document.getElementById('ui-image');
+      const desc = document.getElementById('ui-desc');
+      const imgPanel = "https://cdn.discordapp.com/attachments/1569188934980870178/1573832283809648742/image.png?ex=6b037108&is=6b021f88&hm=100f21b411693797af97ff31c12689a3b665e715dfaae50da5967e5bd41b2707&";
+      const imgDropdown = "https://cdn.discordapp.com/attachments/1569188934980870178/1573831910457610381/image.png?ex=6b0370af&is=6b021f2f&hm=bac82a5ec1dadbdad9e33bbca439e4f9ba5220c78053facee1ce8d52d2909916&";
+      
+      if (type === 'panel') {
+        toggleBg.style.transform = 'translateX(0)';
+        btns[0].classList.add('active'); btns[1].classList.remove('active');
+        img.classList.add('swapping'); desc.style.opacity = 0;
+        setTimeout(() => {
+          img.src = imgPanel; img.classList.remove('swapping');
+          desc.innerText = "A centralized hub for all your settings. Everything is neatly organized in a single, easy-to-navigate menu.";
+          desc.style.opacity = 1;
+        }, 300);
+      } else {
+        toggleBg.style.transform = 'translateX(100%)';
+        btns[1].classList.add('active'); btns[0].classList.remove('active');
+        img.classList.add('swapping'); desc.style.opacity = 0;
+        setTimeout(() => {
+          img.src = imgDropdown; img.classList.remove('swapping');
+          desc.innerText = "A classic, modular layout. Individual panels for Combat, Render, and Utility can be moved anywhere on your screen.";
+          desc.style.opacity = 1;
+        }, 300);
+      }
+    }
+
+    // 10. FAQ
+    function toggleFaq(el) {
+      const item = el.parentElement;
+      document.querySelectorAll('.faq-item').forEach(f => { if (f !== item) f.classList.remove('active'); });
+      item.classList.toggle('active');
+    }
+
+    // 11. SMOOTH SCROLL
+    document.querySelectorAll('.nav-link').forEach(anchor => {
+      anchor.addEventListener('click', function (e) {
+        const href = this.getAttribute('href');
+        if (!href || !href.startsWith('#') || href.length < 2) return;
+        e.preventDefault();
+        scrollToTarget(document.querySelector(href));
+      });
+    });
+  </script>
+</body>
+</html>

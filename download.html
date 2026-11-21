@@ -1,0 +1,140 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Rain Client — Download</title>
+  <meta name="description" content="Rain Client is still in development. Check back soon.">
+  <meta name="theme-color" content="#0b0a0f">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Chakra+Petch:ital,wght@0,300;0,400;0,500;0,600;0,700;1,400;1,700&display=swap" rel="stylesheet">
+  
+  <style>
+    :root {
+      --bg-dark: #0b0a0f;
+      --bg-darker: #050408;
+      --text-light: #f3f4f6;
+      --text-muted: #9ca3af;
+      --accent: #f472b6; 
+      --accent-light: #fca5a5;
+      --accent-hover: #ec4899;
+      --glass-border: rgba(255, 255, 255, 0.08);
+      --transition-bounce: 0.6s cubic-bezier(0.34, 1.56, 0.64, 1);
+      --transition-expo: 1s cubic-bezier(0.16, 1, 0.3, 1);
+    }
+
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body { 
+      font-family: 'Chakra Petch', sans-serif; 
+      background-color: var(--bg-dark); 
+      color: var(--text-light); 
+      line-height: 1.6; 
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      overflow: hidden;
+    }
+    a { text-decoration: none; color: inherit; }
+
+    /* Background styling */
+    .bg-grid {
+      position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; z-index: 0; pointer-events: none;
+      background-image: 
+        linear-gradient(rgba(255, 255, 255, 0.02) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(255, 255, 255, 0.02) 1px, transparent 1px);
+      background-size: 40px 40px;
+      animation: gridMove 20s linear infinite;
+    }
+    @keyframes gridMove { 0% { background-position: 0 0; } 100% { background-position: 40px 40px; } }
+
+    .bg-orb { position: absolute; border-radius: 50%; filter: blur(140px); z-index: 0; pointer-events: none; opacity: 0.3; }
+    .orb-1 { width: 600px; height: 600px; background: rgba(244, 114, 182, 0.25); top: -10%; right: -10%; animation: floatOrb 15s ease-in-out infinite; }
+    .orb-2 { width: 700px; height: 700px; background: rgba(139, 92, 246, 0.15); bottom: -10%; left: -10%; animation: floatOrb 20s ease-in-out infinite reverse; }
+    @keyframes floatOrb { 0%, 100% { transform: translate(0, 0) scale(1); opacity: 0.2; } 50% { transform: translate(-50px, 50px) scale(1.1); opacity: 0.4; } }
+
+    /* Content Box */
+    .content-box {
+      position: relative;
+      z-index: 10;
+      background: rgba(18, 16, 24, 0.65);
+      backdrop-filter: blur(24px);
+      border: 1px solid var(--glass-border);
+      border-radius: 24px;
+      padding: 60px 50px;
+      max-width: 600px;
+      width: 90%;
+      text-align: center;
+      box-shadow: 0 30px 80px rgba(0,0,0,0.8), inset 0 1px 0 rgba(255,255,255,0.1);
+      animation: popIn 1s var(--transition-expo) both;
+    }
+
+    @keyframes popIn {
+      from { opacity: 0; transform: translateY(40px) scale(0.95); }
+      to { opacity: 1; transform: translateY(0) scale(1); }
+    }
+
+    .logo {
+      font-size: 64px; font-weight: 700; font-style: italic;
+      background: linear-gradient(135deg, var(--accent-light), var(--accent), #8b5cf6);
+      -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+      filter: drop-shadow(0 0 20px rgba(244, 114, 182, 0.6));
+      letter-spacing: 2px; text-transform: uppercase; display: inline-block;
+      margin-bottom: 30px;
+      animation: pulseLogo 4s infinite alternate;
+    }
+    @keyframes pulseLogo { 0% { filter: drop-shadow(0 0 15px rgba(244, 114, 182, 0.3)); transform: scale(1); } 100% { filter: drop-shadow(0 0 40px rgba(244, 114, 182, 0.8)); transform: scale(1.03); } }
+
+    .tag {
+      display: inline-flex; align-items: center; gap: 8px; 
+      font-size: 12px; font-weight: 700; letter-spacing: 0.15em; 
+      text-transform: uppercase; color: var(--accent); 
+      padding: 6px 16px; background: rgba(244, 114, 182, 0.1); 
+      border-radius: 100px; border: 1px solid rgba(244, 114, 182, 0.3);
+      margin-bottom: 20px;
+    }
+    .tag::before {
+      content: ''; display: block; width: 6px; height: 6px; 
+      background: var(--accent); border-radius: 50%; 
+      box-shadow: 0 0 10px var(--accent); animation: pulseDot 2s infinite;
+    }
+    @keyframes pulseDot { 0%, 100% { transform: scale(1); opacity: 1; } 50% { transform: scale(1.5); opacity: 0.5; } }
+
+    h1 { font-size: 38px; font-weight: 700; line-height: 1.2; text-transform: uppercase; margin-bottom: 16px; }
+    p { color: var(--text-muted); font-size: 16px; line-height: 1.8; margin-bottom: 40px; }
+
+    .btn {
+      display: inline-flex; align-items: center; justify-content: center; gap: 10px;
+      padding: 16px 36px; border-radius: 12px; font-size: 14px; font-weight: 700;
+      text-transform: uppercase; letter-spacing: 0.05em;
+      background: var(--accent); color: #000;
+      transition: all 0.4s var(--transition-bounce);
+      border: none; cursor: pointer;
+      box-shadow: 0 0 20px rgba(244, 114, 182, 0.2);
+    }
+    .btn:hover {
+      background: var(--accent-hover); 
+      transform: translateY(-4px) scale(1.05);
+      box-shadow: 0 15px 30px rgba(244, 114, 182, 0.5);
+    }
+  </style>
+</head>
+<body>
+
+  <div class="bg-grid"></div>
+  <div class="bg-orb orb-1"></div>
+  <div class="bg-orb orb-2"></div>
+
+  <div class="content-box">
+    <div class="logo">RAIN</div>
+    
+    <div class="tag">Under Development</div>
+    <h1>Coming Soon</h1>
+    <p>Rain Client is currently still in development. We are working hard to polish the final release. Check back soon or join our Discord to be notified the moment it drops.</p>
+    
+    <a href="index.html" class="btn">&larr; Back to Home</a>
+  </div>
+
+</body>
+</html>
