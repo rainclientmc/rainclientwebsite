@@ -1,0 +1,247 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Download Rain Client</title>
+  <meta name="description" content="Rain Client is free, $0 forever, and almost ready. Join the Discord to hear the moment the download goes live.">
+  <meta name="theme-color" content="#0A0A0D">
+  <link rel="icon" type="image/svg+xml" href="favicon.svg">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Chakra+Petch:ital,wght@0,500;0,600;0,700;1,600;1,700&family=Geist:wght@400;500;600;700&family=Geist+Mono:wght@400;500&display=swap" rel="stylesheet">
+  <style>
+    #nl-badge-frame { display: none !important; }
+    :root {
+      --bg: #0A0A0D;
+      --glass: rgba(16, 15, 21, 0.66);
+      --glass-strong: rgba(14, 13, 19, 0.88);
+      --line: rgba(255, 255, 255, 0.08);
+      --line-2: rgba(255, 255, 255, 0.14);
+      --text: #F4F1F6;
+      --muted: #B3AEBF;
+      --dim: #8E899B;
+      --pink: #F291C6;
+      --pink-2: #F7B6D8;
+      --blue: #8EC5FF;
+      --pink-a: rgba(242, 145, 198, 0.14);
+      --pink-b: rgba(242, 145, 198, 0.32);
+      --ease: cubic-bezier(0.22, 1, 0.36, 1);
+      --display: 'Chakra Petch', 'Geist', sans-serif;
+      --body: 'Geist', system-ui, sans-serif;
+      --mono: 'Geist Mono', ui-monospace, monospace;
+    }
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    html { background: var(--bg); }
+    body { font-family: var(--body); background: var(--bg); color: var(--text); line-height: 1.6; min-height: 100svh; display: flex; flex-direction: column; overflow-x: hidden; -webkit-font-smoothing: antialiased; }
+    a { color: inherit; text-decoration: none; }
+    ::selection { background: var(--pink); color: #1a0c14; }
+    :focus-visible { outline: 2px solid var(--pink-2); outline-offset: 3px; border-radius: 6px; }
+
+    #scene { position: fixed; inset: 0; width: 100vw; height: 100vh; z-index: 0; display: block; }
+    .scene-shade { position: fixed; inset: 0; z-index: 1; pointer-events: none; background: radial-gradient(70% 60% at 50% 50%, rgba(10,10,13,0.35), rgba(10,10,13,0.7)); }
+
+    nav, main, footer { position: relative; z-index: 5; }
+    nav { height: 64px; display: flex; align-items: center; gap: 16px; padding: 0 clamp(16px, 3vw, 36px); background: linear-gradient(180deg, rgba(10,10,13,0.82), rgba(10,10,13,0.5)); backdrop-filter: blur(18px); -webkit-backdrop-filter: blur(18px); border-bottom: 1px solid var(--line); }
+    .brand { display: flex; align-items: center; gap: 10px; }
+    .mark { font-family: var(--display); font-style: italic; font-weight: 700; letter-spacing: 0.02em; background: linear-gradient(135deg, #fff 0%, var(--pink-2) 35%, var(--pink) 70%, var(--blue) 140%); -webkit-background-clip: text; background-clip: text; -webkit-text-fill-color: transparent; }
+    .brand .mark { font-size: 24px; line-height: 1; }
+    .brand small { font-family: var(--display); font-weight: 600; font-size: 13px; letter-spacing: 0.16em; text-transform: uppercase; }
+    .nav-right { margin-left: auto; display: flex; gap: 10px; }
+
+    .btn { display: inline-flex; align-items: center; justify-content: center; gap: 9px; height: 40px; padding: 0 18px; border-radius: 10px; font-family: var(--display); font-weight: 700; font-size: 12.5px; letter-spacing: 0.12em; text-transform: uppercase; white-space: nowrap; transition: transform .3s var(--ease), background .25s, border-color .25s, box-shadow .3s; }
+    .btn svg { width: 16px; height: 16px; flex: none; }
+    .btn-pink { background: var(--pink); color: #22101a; box-shadow: 0 0 0 1px rgba(255,255,255,0.18) inset, 0 8px 28px -8px rgba(242,145,198,0.65); }
+    .btn-pink:hover { background: var(--pink-2); transform: translateY(-2px); }
+    .btn-ghost { background: rgba(255,255,255,0.04); border: 1px solid var(--line-2); }
+    .btn-ghost:hover { border-color: var(--pink-b); background: var(--pink-a); transform: translateY(-2px); }
+    .btn-lg { height: 52px; padding: 0 24px; font-size: 13.5px; border-radius: 12px; }
+    .btn .arrow { transition: transform .3s var(--ease); }
+    .btn:hover .arrow { transform: translateX(3px); }
+    .btn-locked { width: 100%; height: 56px; border-radius: 12px; font-size: 14px; color: var(--muted); background: repeating-linear-gradient(135deg, rgba(255,255,255,0.03) 0 10px, rgba(255,255,255,0.055) 10px 20px); border: 1px dashed var(--line-2); cursor: not-allowed; position: relative; overflow: hidden; }
+    .btn-locked::after { content: ''; position: absolute; inset: 0; background: linear-gradient(110deg, transparent 30%, rgba(242,145,198,0.12) 50%, transparent 70%); transform: translateX(-100%); animation: sweep 3.2s var(--ease) infinite; }
+    @keyframes sweep { 0%, 40% { transform: translateX(-100%); } 100% { transform: translateX(100%); } }
+
+    main { flex: 1; display: grid; place-items: center; padding: 48px 16px 64px; }
+    .card { width: min(560px, 100%); padding: clamp(26px, 5vw, 44px); border-radius: 22px; background: var(--glass); border: 1px solid var(--line); backdrop-filter: blur(22px) saturate(1.15); -webkit-backdrop-filter: blur(22px) saturate(1.15); box-shadow: 0 40px 100px -30px rgba(0,0,0,0.8), inset 0 1px 0 rgba(255,255,255,0.05); text-align: center; position: relative; overflow: hidden; opacity: 0; transform: translateY(26px) scale(0.98); animation: rise 1s var(--ease) .1s forwards; }
+    .card::before { content: ''; position: absolute; width: 360px; height: 360px; left: 50%; top: -220px; transform: translateX(-50%); border-radius: 50%; background: radial-gradient(circle, rgba(242,145,198,0.25), transparent 65%); pointer-events: none; }
+    @keyframes rise { to { opacity: 1; transform: none; } }
+    .card .big { font-size: clamp(64px, 14vw, 96px); line-height: 0.9; position: relative; filter: drop-shadow(0 0 30px rgba(242,145,198,0.35)); }
+
+    .status { display: inline-flex; align-items: center; gap: 9px; margin-top: 16px; padding: 6px 13px; border-radius: 999px; border: 1px solid var(--pink-b); background: var(--pink-a); font-family: var(--mono); font-size: 11.5px; letter-spacing: 0.14em; text-transform: uppercase; color: var(--pink-2); }
+    .status i { width: 7px; height: 7px; border-radius: 50%; background: var(--pink); box-shadow: 0 0 10px var(--pink); animation: blink 1.6s ease-in-out infinite; }
+    @keyframes blink { 50% { opacity: 0.3; } }
+    h1 { font-family: var(--display); font-weight: 700; text-transform: uppercase; font-size: clamp(30px, 6vw, 44px); line-height: 1; margin-top: 18px; }
+    h1 em { color: var(--pink); }
+    .lead { color: var(--muted); font-size: 15.5px; margin: 14px auto 26px; max-width: 420px; }
+
+    .progress { text-align: left; border: 1px solid var(--line); border-radius: 14px; background: rgba(0,0,0,0.22); padding: 6px 16px; margin-bottom: 18px; }
+    .row { display: flex; align-items: center; gap: 12px; padding: 11px 0; font-size: 14px; }
+    .row + .row { border-top: 1px solid var(--line); }
+    .row span { flex: 1; color: #ddd6e4; }
+    .row small { font-family: var(--mono); font-size: 11px; letter-spacing: 0.08em; text-transform: uppercase; color: var(--dim); }
+    .dot { flex: none; width: 18px; height: 18px; border-radius: 6px; display: grid; place-items: center; }
+    .dot.ok { background: var(--pink-a); box-shadow: inset 0 0 0 1px var(--pink-b); }
+    .dot.ok::after { content: ''; width: 8px; height: 4px; border: solid var(--pink); border-width: 0 0 2px 2px; transform: translateY(-1px) rotate(-45deg); }
+    .dot.wip { box-shadow: inset 0 0 0 1px var(--line-2); }
+    .dot.wip::after { content: ''; width: 9px; height: 9px; border-radius: 50%; border: 2px solid var(--pink); border-right-color: transparent; animation: spin 1s linear infinite; }
+    @keyframes spin { to { transform: rotate(360deg); } }
+    .row.wip small { color: var(--pink-2); }
+
+    .actions { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 12px; }
+    .need { margin-top: 22px; display: flex; flex-wrap: wrap; gap: 8px; justify-content: center; }
+    .chip { font-family: var(--mono); font-size: 11.5px; padding: 5px 10px; border-radius: 999px; border: 1px solid var(--line-2); color: #ddd6e4; background: rgba(255,255,255,0.03); transition: border-color .25s, color .25s; }
+    a.chip:hover { border-color: var(--pink-b); color: var(--pink-2); }
+    .fine { margin-top: 18px; color: var(--dim); font-size: 12.5px; }
+    .sr-only { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; border: 0; }
+
+    footer { border-top: 1px solid var(--line); background: rgba(8,8,11,0.85); backdrop-filter: blur(18px); -webkit-backdrop-filter: blur(18px); }
+    .foot { width: min(1180px, 100% - 32px); margin: 0 auto; padding: 18px 0 22px; display: flex; justify-content: space-between; gap: 14px; flex-wrap: wrap; color: var(--dim); font-size: 12.5px; }
+    .foot nav { all: unset; display: flex; gap: 18px; flex-wrap: wrap; }
+    .foot a:hover { color: var(--pink-2); }
+
+    @media (max-width: 520px) {
+      .nav-right .btn-ghost { display: none; }
+      .actions { grid-template-columns: 1fr; }
+    }
+    @media (prefers-reduced-motion: reduce) {
+      *, *::before, *::after { animation-duration: .001ms !important; animation-iteration-count: 1 !important; transition-duration: .001ms !important; }
+    }
+  </style>
+</head>
+<body>
+  <canvas id="scene" aria-hidden="true"></canvas>
+  <div class="scene-shade" aria-hidden="true"></div>
+
+  <nav>
+    <a href="index.html" class="brand" aria-label="Rain Client home"><span class="mark" aria-hidden="true">RAIN</span><small aria-hidden="true">Client</small></a>
+    <div class="nav-right">
+      <a class="btn btn-ghost" href="index.html"><span aria-hidden="true">&larr;</span> Home</a>
+      <a class="btn btn-pink" href="https://discord.gg/gy9cV5q3xu" target="_blank" rel="noopener">Discord</a>
+    </div>
+  </nav>
+
+  <main>
+    <div class="card">
+      <div class="mark big" aria-hidden="true">RAIN</div>
+      <div class="status"><i></i>In development</div>
+      <h1><span class="sr-only">Rain Client is </span>Almost <em>ready.</em></h1>
+      <p class="lead">Rain Client is getting its final polish. It will be free, $0 forever. Join the Discord and you'll hear the moment the download goes live.</p>
+
+      <div class="progress" role="list" aria-label="Release progress">
+        <div class="row" role="listitem"><b class="dot ok" aria-hidden="true"></b><span>Fabric 1.21.11 support</span><small>Done</small></div>
+        <div class="row" role="listitem"><b class="dot ok" aria-hidden="true"></b><span>186 modules, panel &amp; dropdown menus</span><small>Done</small></div>
+        <div class="row" role="listitem"><b class="dot ok" aria-hidden="true"></b><span>Skies, knives, cosmetics</span><small>Done</small></div>
+        <div class="row wip" role="listitem"><b class="dot wip" aria-hidden="true"></b><span>Final polish &amp; testing</span><small>In progress</small></div>
+      </div>
+
+      <button class="btn btn-locked" type="button" disabled aria-disabled="true">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><rect x="5" y="11" width="14" height="10" rx="2"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/></svg>
+        Download coming soon
+      </button>
+
+      <div class="actions">
+        <a class="btn btn-pink btn-lg" href="https://discord.gg/gy9cV5q3xu" target="_blank" rel="noopener">Get notified <span class="arrow" aria-hidden="true">&rarr;</span></a>
+        <a class="btn btn-ghost btn-lg" href="index.html#pricing">How to install</a>
+      </div>
+
+      <div class="need">
+        <span class="chip">$0 forever</span>
+        <span class="chip">Minecraft 1.21.11</span>
+        <span class="chip">Fabric Loader</span>
+        <a class="chip" href="https://modrinth.com/mod/fabric-api?loader=fabric&amp;version=1.21.11" target="_blank" rel="noopener">Fabric API <span aria-hidden="true">&#8599;</span></a>
+      </div>
+      <p class="fine">Only download Rain from this website or the official Discord.</p>
+    </div>
+  </main>
+
+  <footer>
+    <div class="foot">
+      <span>&copy; 2026 Rain Client. Not affiliated with Mojang or Microsoft.</span>
+      <nav aria-label="Footer"><a href="index.html">Home</a><a href="eula.html">EULA</a><a href="privacy.html">Privacy</a></nav>
+    </div>
+  </footer>
+
+  <script>
+  (() => {
+    const reduce = matchMedia('(prefers-reduced-motion: reduce)').matches;
+    const cv = document.getElementById('scene'), g = cv.getContext('2d');
+    let W = 0, H = 0, drops = [], flash = 0, nextFlash = 3 + Math.random() * 5, t0 = performance.now();
+    function rnd(seed) {
+      let s = (Math.imul(seed ^ 0x9e3779b9, 2654435761) >>> 0) || 1;
+      const n = () => { s ^= s << 13; s >>>= 0; s ^= s >>> 17; s ^= s << 5; s >>>= 0; return s / 4294967296; };
+      n(); n(); n(); return n;
+    }
+    function noise1(r, n) { const a = []; let v = r() * 0.5 + 0.25; for (let i = 0; i < n; i++) { v += (r() - 0.5) * 0.18; v = Math.min(0.9, Math.max(0.1, v)); a.push(v); } return a; }
+    const LAYERS = [
+      { seed: 11, block: 26, base: 0.62, amp: 0.20, color: '#1b1526', top: '#2b2038', drift: 3, trees: 0 },
+      { seed: 23, block: 32, base: 0.72, amp: 0.16, color: '#141019', top: '#3a2440', drift: 7, trees: 0.06 },
+      { seed: 37, block: 40, base: 0.82, amp: 0.12, color: '#0d0b11', top: '#4a2a45', drift: 12, trees: 0.1 }
+    ];
+    LAYERS.forEach(L => { const r = rnd(L.seed); L.h = noise1(r, 400); L.t = L.h.map(() => r()); });
+    const clouds = Array.from({ length: 9 }, (_, i) => { const r = rnd(100 + i); return { x: r(), y: 0.08 + r() * 0.26, w: 3 + (r() * 5 | 0), s: 0.004 + r() * 0.006, b: 14 + (r() * 10 | 0) }; });
+    const stars = Array.from({ length: 90 }, (_, i) => { const r = rnd(500 + i); return { x: r(), y: r() * 0.5, a: r(), s: r() < 0.15 ? 2 : 1 }; });
+    function newDrop(any) { const z = Math.random(); return { x: Math.random() * (W + 200) - 100, y: any ? Math.random() * H : -20 - Math.random() * 80, z, l: 10 + z * 22, v: 520 + z * 760, a: 0.12 + z * 0.4 }; }
+    function resize() {
+      const dpr = Math.min(2, devicePixelRatio || 1); W = innerWidth; H = innerHeight;
+      cv.width = W * dpr; cv.height = H * dpr; g.setTransform(dpr, 0, 0, dpr, 0, 0);
+      drops = Array.from({ length: Math.round(Math.min(260, W * H / 6500) * (reduce ? 0.3 : 1)) }, () => newDrop(true));
+    }
+    function draw(now, still) {
+      const dt = still ? 0 : Math.min(0.05, (now - t0) / 1000); t0 = now;
+      const t = now / 1000;
+      const sk = g.createLinearGradient(0, 0, 0, H);
+      sk.addColorStop(0, '#07070c'); sk.addColorStop(0.45, '#151023'); sk.addColorStop(0.72, '#3b1d3a'); sk.addColorStop(0.86, '#6a2c55'); sk.addColorStop(1, '#2a1424');
+      g.fillStyle = sk; g.fillRect(0, 0, W, H);
+      const hg = g.createRadialGradient(W * 0.5, H * 0.78, 0, W * 0.5, H * 0.78, Math.max(W, H) * 0.6);
+      hg.addColorStop(0, 'rgba(242,145,198,0.32)'); hg.addColorStop(0.5, 'rgba(142,120,255,0.08)'); hg.addColorStop(1, 'rgba(0,0,0,0)');
+      g.fillStyle = hg; g.fillRect(0, 0, W, H);
+      for (const s of stars) { g.globalAlpha = 0.25 + 0.5 * Math.abs(Math.sin(t * 0.6 + s.a * 9)); g.fillStyle = '#f3e8ff'; g.fillRect(s.x * W, s.y * H, s.s, s.s); }
+      g.globalAlpha = 1;
+      for (const c of clouds) {
+        const cx = ((c.x + t * c.s) % 1.3 - 0.15) * W, cy = c.y * H;
+        g.fillStyle = 'rgba(80,60,100,0.28)';
+        for (let i = 0; i < c.w; i++) g.fillRect(cx + i * c.b, cy + (i % 2 ? 0 : c.b * 0.4), c.b, c.b * (i === 0 || i === c.w - 1 ? 0.7 : 1.1));
+      }
+      for (const L of LAYERS) {
+        const bw = L.block, off = reduce ? 0 : t * L.drift, start = Math.floor(off / bw), shift = -(off % bw);
+        for (let i = 0; i <= W / bw + 1; i++) {
+          const idx = (start + i) % L.h.length, h = L.h[idx];
+          const top = Math.round((L.base - (h - 0.5) * L.amp * 2) * H / (bw / 2)) * (bw / 2);
+          const x = shift + i * bw;
+          g.fillStyle = L.color; g.fillRect(x, top, bw + 1, H - top);
+          g.fillStyle = L.top; g.fillRect(x, top, bw + 1, Math.max(3, bw * 0.18));
+          if (L.trees && L.t[idx] < L.trees) {
+            const th = bw * 2.2;
+            g.fillStyle = L.color; g.fillRect(x + bw * 0.38, top - th, bw * 0.24, th);
+            g.fillStyle = L.top; g.fillRect(x - bw * 0.25, top - th - bw * 0.9, bw * 1.5, bw);
+            g.fillStyle = 'rgba(242,145,198,0.22)'; g.fillRect(x - bw * 0.25, top - th - bw * 0.9, bw * 1.5, bw * 0.22);
+          }
+        }
+      }
+      g.lineCap = 'round';
+      for (const d of drops) {
+        d.y += d.v * dt; d.x -= d.v * dt * 0.12;
+        if (d.y > H + 20 || d.x < -40) Object.assign(d, newDrop(false));
+        g.strokeStyle = `rgba(247,182,216,${d.a})`; g.lineWidth = 0.6 + d.z * 0.9;
+        g.beginPath(); g.moveTo(d.x, d.y); g.lineTo(d.x + d.l * 0.12, d.y - d.l); g.stroke();
+      }
+      if (!reduce) {
+        nextFlash -= dt;
+        if (nextFlash <= 0) { flash = 1; nextFlash = 7 + Math.random() * 9; }
+        if (flash > 0) { g.fillStyle = `rgba(255,220,240,${flash * 0.10})`; g.fillRect(0, 0, W, H); flash = Math.max(0, flash - dt * 2.6); }
+      }
+    }
+    let running = false;
+    function loop(now) { if (!running) return; draw(now); requestAnimationFrame(loop); }
+    function update() {
+      const want = !reduce && !document.hidden;
+      if (want && !running) { running = true; t0 = performance.now(); requestAnimationFrame(loop); } else if (!want) running = false;
+    }
+    addEventListener('resize', () => { resize(); if (!running) draw(performance.now(), true); });
+    resize(); draw(performance.now(), true);
+    document.addEventListener('visibilitychange', update); update();
+  })();
+  </script>
+</body>
+</html>
